@@ -1,0 +1,220 @@
+---
+---
+
+/* prettier-ignore */
+@use 'main
+{%- if jekyll.environment == 'production' -%}
+  .bundle
+{%- endif -%}
+';
+
+/* append your custom style below */
+
+/* ═══════════════════════════════════════════════════════
+   ilo0x — Custom Dark Theme
+   Palette extracted from red-eyed tree frog avatar
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Theme variables ── */
+$accent: rgb(209, 145, 70);
+$accent-bright: rgb(194, 113, 32);
+
+/* --- Dark mode overrides --- */
+
+[data-mode="dark"],
+[data-mode="dark"] body {
+  /* ── Backgrounds ── */
+  --main-bg: rgb(14, 22, 20); /* near-black with green undertone */
+  --site-title-color: rgb(200, 210, 205); /* soft off-white */
+  --site-subtitle-color: rgb(120, 145, 135); /* muted sage */
+  --sidebar-bg: rgb(10, 18, 16); /* deepest dark */
+  --bs-body-color: rgb(14, 22, 20);
+  --topbar-bg: rgb(14, 22, 20);
+  --card-bg: rgb(20, 32, 28); /* subtle lift from main bg */
+  --card-hover-bg: rgb(28, 45, 38); /* gentle hover */
+  --top-bar-color: rgb(80, 180, 130);
+  --card-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.35);
+
+  /* ── Typography ── */
+  --text-color: rgb(195, 210, 200); /* warm off-white, easy on eyes */
+  --text-muted-color: rgb(100, 130, 115); /* muted green-grey */
+  --heading-color: rgb(210, 220, 212); /* slightly brighter for headings */
+  --blockquote-border-color: $accent-bright; /* bright orange */
+  --blockquote-text-color: rgb(180, 175, 165);
+
+  /* ── Links & Accents ── */
+  --link-color: rgb(80, 180, 130); /* calm green — from the leaves */
+  --link-underline-color: rgba(80, 180, 130, 0.25);
+  --link-hover-color: $accent;
+  --btn-backtotop-color: rgb(80, 180, 130);
+  --checkbox-checked-color: rgb(80, 180, 130);
+
+  /* ── Sidebar nav ── */
+  --sidebar-active-color: rgb(80, 180, 130);
+  --sidebar-muted-color: rgb(90, 120, 105);
+  --nav-cursor-color: rgb(180, 120, 80);
+
+  /* ── Accent (orange from frog eyes — used sparingly) ── */
+  --tag-hover: rgb(29, 49, 39);
+  --btn-border-color: rgb(40, 60, 50);
+
+  /* ── Code ── */
+  --code-bg: rgb(16, 26, 22);
+  --code-color: rgb(180, 199, 187); /*  */
+  --code-header-bg: rgb(22, 36, 30);
+
+  /* ── Inputs & misc ── */
+  --input-focus-border-color: rgb(60, 140, 100);
+  --img-bg: rgb(20, 32, 28);
+  --shimmer-bg: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(80, 180, 130, 0.04) 50%,
+    transparent 100%
+  );
+
+  /* ── Borders ── */
+  --main-border-color: rgb(30, 50, 40);
+
+  /* ── Search ── */
+  --search-border-color: rgb(35, 55, 45);
+  --search-icon-color: rgb(100, 130, 115);
+
+  /* ── Footer ── */
+  --footer-link: rgb(100, 150, 130);
+
+  /* ── Table of Contents ── */
+  --toc-highlight: $accent;
+
+  /* ── Avatar ring (subtle green glow) ── */
+  --avatar-border-color: rgb(40, 90, 65);
+}
+
+/* Also apply for system dark preference */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-mode]) {
+    --main-bg: rgb(14, 22, 20);
+    --site-title-color: rgb(200, 210, 205);
+    --site-subtitle-color: rgb(120, 145, 135);
+    --sidebar-bg: rgb(10, 18, 16);
+    --bs-body-color: rgb(14, 22, 20);
+    --topbar-bg: rgb(14, 22, 20);
+    --card-bg: rgb(20, 32, 28);
+    --card-hover-bg: rgb(28, 45, 38);
+    --card-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.35);
+    --text-color: rgb(195, 210, 200);
+    --text-muted-color: rgb(100, 130, 115);
+    --heading-color: rgb(210, 220, 212);
+    --blockquote-border-color: rgb(30, 70, 50);
+    --blockquote-text-color: rgb(140, 170, 155);
+    --link-color: $accent;
+    --link-underline-color: rgba($accent, 0.25);
+    --link-hover-color: $accent;
+    --btn-backtotop-color: rgb(80, 180, 130);
+    --checkbox-checked-color: rgb(80, 180, 130);
+    --sidebar-active-color: rgb(80, 180, 130);
+    --sidebar-muted-color: rgb(90, 120, 105);
+    --nav-cursor-color: rgb(80, 180, 130);
+    --tag-hover: rgb(209, 125, 50);
+    --toc-highlight: $accent;
+    --btn-border-color: rgb(40, 60, 50);
+    --code-bg: rgb(16, 26, 22);
+    --code-color: rgb(160, 200, 175);
+    --code-header-bg: rgb(22, 36, 30);
+    --input-focus-border-color: rgb(60, 140, 100);
+    --img-bg: rgb(20, 32, 28);
+    --shimmer-bg: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(80, 180, 130, 0.04) 50%,
+      transparent 100%
+    );
+    --main-border-color: rgb(30, 50, 40);
+    --search-border-color: rgb(35, 55, 45);
+    --search-icon-color: rgb(100, 130, 115);
+    --footer-link: rgb(100, 150, 130);
+    --avatar-border-color: rgb(40, 90, 65);
+  }
+}
+
+/* ── Subtle refinements ── */
+
+/* Softer avatar ring */
+#sidebar #avatar {
+  border: 2px solid rgba(80, 180, 130, 0.3) !important;
+  box-shadow: 0 0 16px rgba(80, 180, 130, 0.08);
+  transition:
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+#sidebar #avatar:hover {
+  border-color: rgba(80, 180, 130, 0.5) !important;
+  box-shadow: 0 0 24px rgba(80, 180, 130, 0.12);
+}
+
+/* Nav active indicator uses accent green */
+#sidebar .nav-link.active,
+#sidebar .nav-link:hover {
+  color: rgb(80, 180, 130) !important;
+}
+
+/* Tag pills — calm on hover, orange flash for personality */
+.post-tag:hover {
+  border-color: $accent;
+  color: $accent;
+  transition: all 0.25s ease;
+}
+
+/* Scrollbar — minimal and themed */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgb(14, 22, 20);
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(40, 70, 55);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(60, 100, 80);
+}
+
+/* Selection color */
+::selection {
+  background: rgba(80, 180, 130, 0.25);
+  color: rgb(220, 235, 225);
+}
+
+/* ── Trending tags — orange on hover ── */
+.post-tag.btn.btn-outline-primary:hover {
+  color: $accent !important;
+  border-color: $accent !important;
+  background: rgba($accent, 0.08) !important;
+}
+
+/* ── TOC — orange for active section ── */
+.is-active-link {
+  color: $accent !important;
+}
+.is-active-link::before {
+  background-color: $accent !important;
+}
+.toc-link:hover {
+  color: rgb(225, 165, 90) !important;
+}
+
+/* ── Global link hover — orange accent ── */
+#page-category a:hover,
+#page-tag a:hover,
+#access-lastmod a:hover,
+.post-tail-wrapper .license-wrapper > a:hover,
+#search-results a:hover,
+footer a:hover,
+#topbar #breadcrumb a:hover,
+.post-meta a:not([class]):hover,
+.content a:not(.img-link):hover {
+  color: $accent !important;
+  border-bottom: 1px solid $accent !important;
+}

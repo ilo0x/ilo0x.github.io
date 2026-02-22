@@ -1,0 +1,265 @@
+---
+---
+
+/* prettier-ignore */
+@use 'main
+{%- if jekyll.environment == 'production' -%}
+  .bundle
+{%- endif -%}
+';
+
+/* append your custom style below */
+
+/* ═══════════════════════════════════════════════════════
+   ilo0x — Custom Dark Theme
+   Palette extracted from red-eyed tree frog avatar
+   Green = ambient / environment
+   Orange = interactive / eyes / attention
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Palette ── */
+$accent: rgb(209, 145, 70);
+$accent-bright: rgb(194, 113, 32);
+$accent-hover: rgb(225, 165, 90);
+$accent-dim: rgba(209, 145, 70, 0.25);
+$accent-faint: rgba(209, 145, 70, 0.08);
+
+$green: rgb(80, 180, 130);
+$green-dim: rgba(80, 180, 130, 0.25);
+$green-faint: rgba(80, 180, 130, 0.08);
+$green-ring: rgba(80, 180, 130, 0.3);
+$green-ring-h: rgba(80, 180, 130, 0.5);
+$green-glow: rgba(80, 180, 130, 0.08);
+$green-glow-h: rgba(80, 180, 130, 0.12);
+
+$bg-deepest: rgb(10, 18, 16);
+$bg-deep: rgb(14, 22, 20);
+$bg-card: rgb(32, 59, 50); /*20, 32, 28*/
+$bg-card-hover: rgb(28, 45, 38);
+$bg-code: rgb(16, 26, 22);
+$bg-code-head: rgb(22, 36, 30);
+
+$text: rgb(195, 210, 200);
+$text-heading: rgb(210, 220, 212);
+$text-muted: rgb(100, 130, 115);
+$text-subtle: rgb(90, 120, 105);
+$text-title: rgb(200, 210, 205);
+$text-subtitle: rgb(120, 145, 135);
+$text-quote: rgb(180, 175, 165);
+$text-code: rgb(180, 199, 187);
+
+$border: rgb(30, 50, 40);
+$border-btn: rgb(40, 60, 50);
+$border-search: rgb(35, 55, 45);
+$border-avatar: rgb(40, 90, 65);
+
+$scrollbar: rgb(40, 70, 55);
+$scrollbar-h: rgb(60, 100, 80);
+
+/* ── Dark mode variables ── */
+
+[data-mode='dark'],
+[data-mode='dark'] body {
+  /* Backgrounds */
+  --main-bg: #{$bg-deep};
+  --sidebar-bg: #{$bg-deepest};
+  --bs-body-color: #{$bg-deep};
+  --topbar-bg: #{$bg-deep};
+  --card-bg: #{$bg-card};
+  --card-hover-bg: #{$bg-card-hover};
+  --card-header-bg: #{$bg-code};
+  --card-shadow: 0 2px 12px 0 rgba(16, 29, 22, 0.35);
+  --img-bg: #{$bg-card};
+  --code-bg: #{$bg-code};
+  --code-header-bg: #{$bg-code-head};
+
+  /* Typography */
+  --site-title-color: #{$text-title};
+  --site-subtitle-color: #{$text-subtitle};
+  --text-color: #{$text};
+  --text-muted-color: #{$text-muted};
+  --heading-color: #{$text-heading};
+  --blockquote-border-color: #{$accent-bright};
+  --blockquote-text-color: #{$text-quote};
+  --code-color: #{$text-code};
+
+  /* Links — green ambient, orange interactive */
+  --link-color: #{$green};
+  --link-underline-color: #{$green-dim};
+  --link-hover-color: #{$accent};
+  --btn-backtotop-color: #{$green};
+  --checkbox-checked-color: #{$green};
+  --top-bar-color: #{$green};
+
+  /* Sidebar */
+  --sidebar-active-color: #{$green};
+  --sidebar-muted-color: #{$text-subtle};
+  --nav-cursor-color: rgb(180, 120, 80);
+
+  /* Buttons & tags */
+  --tag-hover: #{$bg-card-hover};
+  --btn-border-color: #{$border-btn};
+
+  /* Inputs */
+  --input-focus-border-color: #{$green};
+
+  /* Borders */
+  --main-border-color: #{$border};
+  --search-border-color: #{$border-search};
+  --search-icon-color: #{$text-muted};
+
+  /* Footer */
+  --footer-link: #{$green};
+
+  /* TOC */
+  --toc-highlight: #{$accent};
+
+  /* Avatar */
+  --avatar-border-color: #{$border-avatar};
+
+  /* Shimmer */
+  --shimmer-bg: linear-gradient(
+    90deg,
+    transparent 0%,
+    #{$green-faint} 50%,
+    transparent 100%
+  );
+}
+
+/* System dark preference */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-mode]) {
+    --main-bg: #{$bg-deep};
+    --sidebar-bg: #{$bg-deepest};
+    --bs-body-color: #{$bg-deep};
+    --topbar-bg: #{$bg-deep};
+    --card-bg: #{$bg-card};
+    --card-hover-bg: #{$bg-card-hover};
+    --card-header-bg: #{$bg-deep};
+    --card-shadow: 0 2px 12px 0 rgba(16, 29, 22, 0.35);
+    --img-bg: #{$bg-card};
+    --code-bg: #{$bg-code};
+    --code-header-bg: #{$bg-code-head};
+
+    --site-title-color: #{$text-title};
+    --site-subtitle-color: #{$text-subtitle};
+    --text-color: #{$text};
+    --text-muted-color: #{$text-muted};
+    --heading-color: #{$text-heading};
+    --blockquote-border-color: #{$accent-bright};
+    --blockquote-text-color: #{$text-quote};
+    --code-color: #{$text-code};
+
+    --link-color: #{$green};
+    --link-underline-color: #{$green-dim};
+    --link-hover-color: #{$accent};
+    --btn-backtotop-color: #{$green};
+    --checkbox-checked-color: #{$green};
+    --top-bar-color: #{$green};
+
+    --sidebar-active-color: #{$green};
+    --sidebar-muted-color: #{$text-subtle};
+    --nav-cursor-color: rgb(180, 120, 80);
+
+    --tag-hover: #{$bg-card-hover};
+    --btn-border-color: #{$border-btn};
+
+    --input-focus-border-color: #{$green};
+
+    --main-border-color: #{$border};
+    --search-border-color: #{$border-search};
+    --search-icon-color: #{$text-muted};
+
+    --footer-link: #{$green};
+    --toc-highlight: #{$accent};
+    --avatar-border-color: #{$border-avatar};
+
+    --shimmer-bg: linear-gradient(
+      90deg,
+      transparent 0%,
+      #{$green-faint} 50%,
+      transparent 100%
+    );
+  }
+}
+
+/* ══════════════════════════════════════
+   Element overrides
+   ══════════════════════════════════════ */
+
+/* ── Avatar ── */
+#sidebar #avatar {
+  border: 2px solid #{$green-ring} !important;
+  box-shadow: 0 0 16px #{$green-glow};
+  transition:
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
+}
+#sidebar #avatar:hover {
+  border-color: #{$green-ring-h} !important;
+  box-shadow: 0 0 24px #{$green-glow-h};
+}
+
+/* ── Sidebar nav ── */
+#sidebar .nav-link.active,
+#sidebar .nav-link:hover {
+  color: #{$green} !important;
+}
+
+/* ── Tags ── */
+.post-tag:hover {
+  border-color: #{$accent};
+  color: #{$accent};
+  transition: all 0.25s ease;
+}
+.post-tag.btn.btn-outline-primary:hover {
+  color: #{$accent} !important;
+  border-color: #{$accent} !important;
+  background: #{$accent-faint} !important;
+}
+
+/* ── TOC ── */
+.is-active-link {
+  color: #{$accent} !important;
+}
+.is-active-link::before {
+  background-color: #{$accent} !important;
+}
+.toc-link:hover {
+  color: #{$accent-hover} !important;
+}
+
+/* ── Global link hover (hardcoded override) ── */
+#page-category a:hover,
+#page-tag a:hover,
+#access-lastmod a:hover,
+.post-tail-wrapper .license-wrapper > a:hover,
+#search-results a:hover,
+footer a:hover,
+#topbar #breadcrumb a:hover,
+.post-meta a:not([class]):hover,
+.content a:not(.img-link):hover {
+  color: #{$accent} !important;
+  border-bottom: 1px solid #{$accent} !important;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #{$bg-deep};
+}
+::-webkit-scrollbar-thumb {
+  background: #{$scrollbar};
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #{$scrollbar-h};
+}
+
+/* ── Selection ── */
+::selection {
+  background: #{$green-dim};
+  color: rgb(220, 235, 225);
+}
