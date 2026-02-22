@@ -1,0 +1,2243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CLAMM Backtester</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --bg: #0a0b0f;
+    --surface: #12141a;
+    --surface2: #1a1d26;
+    --border: #252833;
+    --border-accent: #2e3340;
+    --text: #e2e4ea;
+    --text-dim: #7a7f8e;
+    --text-muted: #4a4f5e;
+    --accent: #c084fc;
+    --accent-dim: #7c3aed;
+    --green: #34d399;
+    --green-dim: rgba(52, 211, 153, 0.15);
+    --red: #f87171;
+    --red-dim: rgba(248, 113, 113, 0.15);
+    --cyan: #22d3ee;
+    --orange: #fb923c;
+    --yellow: #fbbf24;
+    --range-fill: rgba(192, 132, 252, 0.06);
+    --canvas-bg: #0a0b0f;
+    --canvas-grid: rgba(255,255,255,0.04);
+    --canvas-zero: rgba(255,255,255,0.12);
+    --canvas-crosshair: rgba(255,255,255,0.15);
+    --canvas-label: rgba(122, 127, 142, 0.7);
+    --canvas-label-dim: rgba(122, 127, 142, 0.5);
+    --canvas-label-bright: #fff;
+    --canvas-text-soft: rgba(226,228,234,0.6);
+    --green-fill: rgba(52, 211, 153, 0.12);
+    --red-fill: rgba(248, 113, 113, 0.08);
+  }
+
+  [data-theme="light"] {
+    --bg: #e8e4df;
+    --surface: #f0ece7;
+    --surface2: #ddd8d2;
+    --border: #c8c2ba;
+    --border-accent: #b8b0a6;
+    --text: #2a2520;
+    --text-dim: #5e564e;
+    --text-muted: #8a827a;
+    --accent: #9333ea;
+    --accent-dim: #7c3aed;
+    --green: #16a34a;
+    --green-dim: rgba(22, 163, 74, 0.12);
+    --red: #dc2626;
+    --red-dim: rgba(220, 38, 38, 0.12);
+    --cyan: #0891b2;
+    --orange: #ea580c;
+    --yellow: #ca8a04;
+    --range-fill: rgba(147, 51, 234, 0.06);
+    --canvas-bg: #e8e4df;
+    --canvas-grid: rgba(0,0,0,0.07);
+    --canvas-zero: rgba(0,0,0,0.18);
+    --canvas-crosshair: rgba(0,0,0,0.14);
+    --canvas-label: rgba(60, 52, 44, 0.85);
+    --canvas-label-dim: rgba(60, 52, 44, 0.5);
+    --canvas-label-bright: #2a2520;
+    --canvas-text-soft: rgba(42,37,32,0.55);
+    --green-fill: rgba(22, 163, 74, 0.12);
+    --red-fill: rgba(220, 38, 38, 0.08);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .app {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    grid-template-rows: auto 1fr auto;
+    height: 100vh;
+    gap: 0;
+  }
+
+  /* ── Header ── */
+  header {
+    grid-column: 1 / -1;
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  header h1 {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: 0.5px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+  }
+  header h1 span.hl { color: var(--accent); font-weight: 700; }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .header-metrics {
+    display: flex;
+    gap: 24px;
+    font-size: 11px;
+  }
+  .header-metrics .metric {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
+  }
+  .header-metrics .metric-label {
+    color: var(--text-muted);
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .header-metrics .metric-value {
+    font-weight: 500;
+    font-size: 12px;
+  }
+  .positive { color: var(--green); }
+  .negative { color: var(--red); }
+
+  .hdr-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .hdr-btn:hover { border-color: var(--accent); color: var(--text); }
+  .hdr-btn svg { stroke: currentColor; }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    grid-column: 1;
+    grid-row: 2;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .sidebar-section {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-section:last-child { border-bottom: none; }
+
+  .section-title {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .field { margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label {
+    font-size: 10px;
+    color: var(--text-dim);
+    min-width: 70px;
+    flex-shrink: 0;
+  }
+  .field input[type="number"],
+  .field input[type="text"],
+  .field select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 5px 8px;
+    border-radius: 4px;
+    flex: 1;
+    min-width: 0;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .field input:focus, .field select:focus { border-color: var(--accent); }
+  .field select {
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237a7f8e'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    padding-right: 22px;
+  }
+  .field-check {
+    display: flex; align-items: center; gap: 6px; margin-bottom: 6px;
+  }
+  .field-check input[type="checkbox"] { accent-color: var(--accent); }
+  .field-check label { font-size: 10px; color: var(--text-dim); min-width: 0; }
+
+  .field-row { display: flex; gap: 6px; margin-bottom: 8px; }
+  .field-row .field { flex: 1; margin-bottom: 0; }
+  .field-row .field label { min-width: 0; }
+
+  .hint {
+    font-size: 9px;
+    color: var(--text-muted);
+    margin-top: 2px;
+    margin-bottom: 6px;
+  }
+
+  /* Seq ranges */
+  .seq-ranges { margin-top: 6px; }
+  .seq-range {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    position: relative;
+  }
+  .seq-range-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .seq-range .seq-name {
+    font-size: 11px;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .seq-range-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    margin-bottom: 4px;
+  }
+  .seq-range-row:last-child { margin-bottom: 0; }
+  .seq-range-field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .seq-range-field span {
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+  }
+  .seq-range input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 5px 8px;
+    border-radius: 4px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .seq-range input:focus { border-color: var(--accent); }
+  .seq-range-del {
+    background: none; border: none; color: var(--text-muted);
+    cursor: pointer; font-size: 14px; padding: 0 2px;
+    opacity: 0.4; transition: opacity 0.15s, color 0.15s;
+  }
+  .seq-range-del:hover { opacity: 1; color: var(--red); }
+
+  .add-btn, .import-btn {
+    background: none;
+    border: 1px dashed var(--border);
+    color: var(--text-muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .add-btn:hover, .import-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .import-btn { margin-left: 6px; }
+  .btn-row { display: flex; gap: 6px; margin-top: 8px; }
+
+  /* Run button */
+  .run-btn {
+    width: 100%;
+    padding: 10px 0;
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
+    color: #fff;
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.05s;
+  }
+  .run-btn:hover { background: var(--accent); }
+  .run-btn:active { transform: scale(0.98); }
+  .run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* CSV drop zone */
+  .dropzone {
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    text-align: center;
+    font-size: 10px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+  .dropzone:hover, .dropzone.dragover {
+    border-color: var(--accent);
+    background: rgba(192, 132, 252, 0.04);
+  }
+  .dropzone input { display: none; }
+  .dropzone .csv-info {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 6px;
+  }
+  .dropzone .csv-loaded { color: var(--green); }
+
+  /* Source toggle */
+  .source-toggle {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+  .source-toggle button {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 5px 0;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .source-toggle button.active {
+    background: var(--accent-dim);
+    color: #fff;
+  }
+
+  /* ── Chart area ── */
+  .chart-area {
+    grid-column: 2;
+    grid-row: 2;
+    position: relative;
+    background: var(--bg);
+    overflow: hidden;
+  }
+  .chart-area canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+  }
+
+  .chart-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 8px;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+  .chart-placeholder .icon { font-size: 32px; opacity: 0.3; }
+
+  /* Legend in chart */
+  .legend {
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 10px;
+    color: var(--text-dim);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .legend.visible { opacity: 1; }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-swatch { width: 14px; height: 3px; border-radius: 1px; }
+  .legend-swatch.dashed {
+    background: none;
+    border-top: 2px dashed;
+  }
+
+  /* Tooltip */
+  .tooltip {
+    position: absolute;
+    background: var(--surface2);
+    border: 1px solid var(--border-accent);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 10px;
+    color: var(--text);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.12s;
+    z-index: 50;
+    white-space: nowrap;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+  }
+  .tooltip.visible { opacity: 1; }
+  .tooltip .tt-row { display: flex; justify-content: space-between; gap: 16px; }
+  .tooltip .tt-label { color: var(--text-muted); }
+
+  /* ── Bottom bar / log ── */
+  .bottom-bar {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    max-height: 220px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: max-height 0.3s;
+  }
+  .bottom-bar.collapsed { max-height: 34px; }
+
+  .log-header {
+    padding: 8px 16px;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    user-select: none;
+    flex-shrink: 0;
+  }
+  .log-header:hover { color: var(--text-dim); }
+  .log-header .chevron { transition: transform 0.2s; }
+  .bottom-bar.collapsed .log-header .chevron { transform: rotate(-90deg); }
+
+  .log-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 16px 8px;
+    font-size: 10px;
+  }
+  .log-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .log-table th {
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    text-align: left;
+    padding: 3px 8px 3px 0;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+  }
+  .log-table td {
+    padding: 3px 8px 3px 0;
+    color: var(--text-dim);
+    font-size: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.02);
+    white-space: nowrap;
+  }
+  .log-table .mono { font-family: 'DM Mono', monospace; }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(12px);
+    background: var(--surface2);
+    border: 1px solid var(--border-accent);
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    z-index: 600;
+  }
+  .toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast .toast-check { color: var(--green); }
+
+  /* ── Presets dropdown ── */
+  .preset-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    background: var(--surface2);
+    border: 1px solid var(--border-accent);
+    border-radius: 8px;
+    padding: 6px 0;
+    min-width: 200px;
+    z-index: 200;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.5);
+    display: none;
+  }
+  .preset-dropdown.open { display: block; }
+  .preset-dropdown .menu-title {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    padding: 6px 14px 4px;
+  }
+  .preset-sep { height: 1px; background: var(--border); margin: 4px 0; }
+  .preset-item {
+    padding: 6px 14px;
+    font-size: 11px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    transition: background 0.15s;
+    color: var(--text-dim);
+  }
+  .preset-item:hover { background: rgba(192,132,252,0.08); color: var(--text); }
+  .preset-item .p-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .preset-item .p-del {
+    opacity: 0;
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: 0 2px;
+    cursor: pointer;
+    transition: opacity 0.15s, color 0.15s;
+    flex-shrink: 0;
+  }
+  .preset-item:hover .p-del { opacity: 1; }
+  .preset-item .p-del:hover { color: var(--red); }
+
+  .preset-save-item {
+    padding: 6px 14px;
+    font-size: 11px;
+    cursor: pointer;
+    color: var(--accent);
+    transition: background 0.15s;
+  }
+  .preset-save-item:hover { background: rgba(192,132,252,0.08); }
+
+  /* ── Frog ── */
+  .frog-wrap {
+    display: inline-flex;
+    align-items: flex-end;
+    width: 20px; height: 24px;
+    position: relative;
+    cursor: pointer;
+    overflow: visible;
+  }
+  .frog-wrap svg { position: absolute; bottom: 0; left: 0; }
+  .frog-svg { display: none; }
+  .frog-svg.active { display: block; }
+  .frog-left { margin-left: 8px; vertical-align: middle; display: inline-flex; }
+  .frog-right { margin-right: 8px; vertical-align: middle; display: inline-flex; }
+  .frog-right.hidden { visibility: hidden; pointer-events: none; }
+  .frog-left.hidden { visibility: hidden; pointer-events: none; }
+
+  .frog-wrap.idle-jump { animation: frogIdleJump 0.6s ease-out; }
+  @keyframes frogIdleJump {
+    0%   { transform: scaleY(1) scaleX(1) translateY(0); }
+    10%  { transform: scaleY(0.75) scaleX(1.15) translateY(2px); }
+    30%  { transform: scaleY(1.15) scaleX(0.92) translateY(-16px); }
+    50%  { transform: scaleY(1.05) scaleX(0.97) translateY(-18px); }
+    70%  { transform: scaleY(1.1) scaleX(0.95) translateY(-8px); }
+    85%  { transform: scaleY(0.85) scaleX(1.1) translateY(1px); }
+    100% { transform: scaleY(1) scaleX(1) translateY(0); }
+  }
+  .frog-wrap.launch { animation: frogLaunch 0.5s ease-in forwards; }
+  @keyframes frogLaunch {
+    0%   { transform: scaleY(0.75) scaleX(1.15) translateY(2px); opacity: 1; }
+    40%  { transform: scaleY(1.1) scaleX(0.95) translateY(-20px); opacity: 1; }
+    100% { transform: scaleY(1) scaleX(1) translateY(-50px); opacity: 0; }
+  }
+  .frog-wrap.land { animation: frogLand 0.45s ease-out forwards; }
+  @keyframes frogLand {
+    0%   { transform: translateY(-50px); opacity: 0; }
+    50%  { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+    75%  { transform: translateY(2px) scaleY(0.8) scaleX(1.12); opacity: 1; }
+    100% { transform: translateY(0) scaleY(1) scaleX(1); opacity: 1; }
+  }
+  .frog-wrap.launch-r { animation: frogLaunchR 0.45s ease-in forwards; }
+  @keyframes frogLaunchR {
+    0%   { transform: scaleX(-1) scaleY(0.75) translateY(2px); opacity: 1; }
+    40%  { transform: scaleX(-1) scaleY(1.1) translateY(-20px); opacity: 1; }
+    100% { transform: scaleX(-1) scaleY(1) translateY(-50px); opacity: 0; }
+  }
+  .frog-wrap.land-l { animation: frogLandL 0.4s ease-out forwards; }
+  @keyframes frogLandL {
+    0%   { transform: translateY(-50px); opacity: 0; }
+    50%  { transform: translateY(-10px); opacity: 1; }
+    75%  { transform: translateY(2px) scaleY(0.8) scaleX(1.12); opacity: 1; }
+    100% { transform: translateY(0) scaleY(1) scaleX(1); opacity: 1; }
+  }
+
+  /* Import modal */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 500;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border-accent);
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  .modal h3 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 14px;
+    margin-bottom: 12px;
+    color: var(--text);
+  }
+  .modal textarea {
+    width: 100%;
+    height: 200px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 10px;
+    border-radius: 6px;
+    resize: vertical;
+    outline: none;
+  }
+  .modal textarea:focus { border-color: var(--accent); }
+  .modal-btns { display: flex; gap: 8px; margin-top: 12px; justify-content: flex-end; }
+  .modal-btns button {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 6px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .modal-btns button:hover { border-color: var(--accent); color: var(--text); }
+  .modal-btns button.primary {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  /* Info modal content */
+  .modal h4 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    margin-top: 14px;
+    margin-bottom: 6px;
+  }
+  .modal p {
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    margin-bottom: 6px;
+  }
+  .modal a { color: var(--cyan); text-decoration: none; }
+  .modal a:hover { text-decoration: underline; }
+  .donate-addr {
+    display: block;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text);
+    margin: 4px 0;
+    word-break: break-all;
+    user-select: all;
+    cursor: text;
+  }
+
+  /* Hover hint tooltips */
+  .has-hint {
+    position: relative;
+    cursor: help;
+    border-bottom: 1px dotted var(--text-muted);
+  }
+  .has-hint .hint-tip {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    background: var(--surface2);
+    border: 1px solid var(--border-accent);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 10px;
+    color: var(--text-dim);
+    white-space: normal;
+    width: 210px;
+    line-height: 1.4;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 100;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .has-hint:hover .hint-tip { opacity: 1; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border-accent); }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <h1>
+      <span class="hl">cl</span>AMM <span class="hl">▸</span> Backtester <a href="https://x.com/ilo_0x" target="_blank" rel="noopener" style="font-size:10px;font-weight:400;color:var(--text-muted);text-decoration:none;margin-left:10px;letter-spacing:0.3px;">by ilo0x</a><span class="frog-wrap frog-left" id="frogLeft" title="click me"></span>
+    </h1>
+    <div class="header-right">
+      <span class="frog-wrap frog-right hidden" id="frogRight" title="click me"></span>
+      <div class="header-metrics" id="headerMetrics" style="opacity:0;transition:opacity 0.3s">
+        <div class="metric">
+          <span class="metric-label">Final Value</span>
+          <span class="metric-value" id="hm-final">—</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">PnL</span>
+          <span class="metric-value" id="hm-pnl">—</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Rebalances</span>
+          <span class="metric-value" id="hm-rebals" style="color:var(--cyan)">—</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Max DD</span>
+          <span class="metric-value" id="hm-dd">—</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">vs Hold</span>
+          <span class="metric-value" id="hm-vshold">—</span>
+        </div>
+      </div>
+      <button class="hdr-btn" id="infoBtn" title="About this tool">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="8" cy="8" r="6.5"/><path d="M8 11V7.5"/><circle cx="8" cy="5" r="0.5" fill="currentColor" stroke="none"/>
+        </svg>
+      </button>
+      <div style="position:relative">
+        <button class="hdr-btn" id="presetBtn" title="Presets">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 1h8l3 3v9a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2z"/>
+            <path d="M5 1v4h6V1"/><path d="M5 11h6"/>
+          </svg>
+        </button>
+        <div class="preset-dropdown" id="presetDropdown">
+          <div class="menu-title">Presets</div>
+          <div id="presetList"></div>
+          <div class="preset-sep"></div>
+          <div class="preset-save-item" id="presetSaveBtn">+ Save current</div>
+        </div>
+      </div>
+      <button class="hdr-btn" id="themeBtn" title="Toggle theme">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="8" cy="8" r="3.5"/><path d="M8 1v1.5"/><path d="M8 13.5V15"/><path d="M1 8h1.5"/><path d="M13.5 8H15"/>
+          <path d="M3.05 3.05l1.06 1.06"/><path d="M11.89 11.89l1.06 1.06"/><path d="M3.05 12.95l1.06-1.06"/><path d="M11.89 4.11l1.06-1.06"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ── Sidebar ── -->
+  <div class="sidebar">
+    <!-- Data Source -->
+    <div class="sidebar-section">
+      <div class="section-title">Price Data</div>
+      <div class="source-toggle">
+        <button class="active" id="srcCsv" onclick="setSource('csv')">CSV</button>
+        <button id="srcSynth" onclick="setSource('synth')">Synthetic</button>
+      </div>
+      <div id="csvPanel">
+        <div class="dropzone" id="dropzone" onclick="document.getElementById('csvInput').click()">
+          Drop CSV here or click to browse
+          <input type="file" id="csvInput" accept=".csv,.tsv,.txt">
+          <div class="csv-info" id="csvInfo"></div>
+        </div>
+      </div>
+      <div id="synthPanel" style="display:none">
+        <div class="field"><label>Points</label><input type="number" id="s-points" value="5000" min="100" step="500"></div>
+        <div class="field"><label>Start $</label><input type="number" id="s-start" value="95000" step="1000"></div>
+        <div class="field"><label>Vol (ann.)</label><input type="number" id="s-vol" value="0.60" step="0.05" min="0.01"></div>
+        <div class="field"><label>Drift</label><input type="number" id="s-drift" value="0" step="0.05"></div>
+        <div class="field"><label>Interval s</label><input type="number" id="s-interval" value="60" step="10" min="1"></div>
+        <div class="field"><label>Seed</label><input type="number" id="s-seed" value="" placeholder="random"></div>
+      </div>
+    </div>
+
+    <!-- Strategy -->
+    <div class="sidebar-section">
+      <div class="section-title">Strategy</div>
+      <div class="field"><label>Type</label>
+        <select id="stratType" onchange="onStratChange()">
+          <option value="percentage_v2">Percentage V2</option>
+          <option value="sequential">Sequential</option>
+        </select>
+      </div>
+
+      <!-- Percentage V2 config -->
+      <div id="pctConfig">
+        <div class="field-check"><input type="checkbox" id="pct-lower-on"><label>Lower bound dev.</label><input type="number" id="pct-lower" value="0.02" step="0.005" min="0" style="width:60px;margin-left:auto;font-size:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:3px;font-family:'DM Mono',monospace"></div>
+        <div class="field-check"><input type="checkbox" id="pct-upper-on"><label>Upper bound dev.</label><input type="number" id="pct-upper" value="0.02" step="0.005" min="0" style="width:60px;margin-left:auto;font-size:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:3px;font-family:'DM Mono',monospace"></div>
+        <div class="field-check"><input type="checkbox" id="pct-center-on" checked><label>Center deviation</label><input type="number" id="pct-center" value="0.05" step="0.005" min="0" style="width:60px;margin-left:auto;font-size:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:3px;font-family:'DM Mono',monospace"></div>
+        <div class="field"><label>Cooldown h</label><input type="number" id="pct-cooldown" value="0" step="0.25" min="0"></div>
+        <div class="field"><label class="has-hint">Spread ovr.<span class="hint-tip">Override the range width used on rebalance. If empty, the strategy derives spread from the current position. Does not affect the initial position. Value is fraction each side of center (0.10 = ±10%).</span></label><input type="number" id="pct-spread" value="" placeholder="auto" step="0.01" min="0"></div>
+      </div>
+
+      <!-- Sequential config -->
+      <div id="seqConfig" style="display:none">
+        <div class="seq-ranges" id="seqRanges"></div>
+        <div class="btn-row">
+          <button class="add-btn" onclick="addSeqRange()">+ Range</button>
+          <button class="import-btn" onclick="openImportModal()">Import</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Position -->
+    <div class="sidebar-section">
+      <div class="section-title">Position</div>
+      <div class="field"><label>Deposit $</label><input type="number" id="p-deposit" value="500" step="100" min="1"></div>
+      <div class="field"><label>Leverage</label><input type="number" id="p-leverage" value="1.5" step="0.1" min="1"></div>
+      <div class="field"><label>Debt type</label>
+        <select id="p-debt">
+          <option value="QUOTE">QUOTE</option>
+          <option value="BASE">BASE</option>
+        </select>
+      </div>
+      <div class="field"><label>Rebal. cost $</label><input type="number" id="p-cost" value="0" step="0.1" min="0"></div>
+      <div class="field"><label class="has-hint">Init bounds<span class="hint-tip">How the initial position is placed. "Spread" = ±Range around first price. "Manual" = explicit bounds (spread is derived automatically). "Strategy" = let the strategy choose.</span></label>
+        <select id="p-initmode" onchange="onInitModeChange()">
+          <option value="spread">Spread</option>
+          <option value="manual">Manual</option>
+          <option value="strategy">Strategy</option>
+        </select>
+      </div>
+      <div id="spreadGroup">
+        <div class="field"><label class="has-hint">Range ±<span class="hint-tip">Width of each deployed position as a fraction each side of center. 0.05 = ±5% (10% total width). Used for the initial range and for new ranges on rebalance.</span></label><input type="number" id="p-spread" value="0.05" step="0.01" min="0.001"></div>
+      </div>
+      <div id="manualBounds" style="display:none">
+        <div class="field"><label>Init lower $</label><input type="number" id="p-initlower" value="90000" step="1000"></div>
+        <div class="field"><label>Init upper $</label><input type="number" id="p-initupper" value="100000" step="1000"></div>
+      </div>
+    </div>
+
+    <!-- Run -->
+    <div class="sidebar-section">
+      <button class="run-btn" id="runBtn" onclick="runBacktest()">▶ Run Backtest</button>
+    </div>
+  </div>
+
+  <!-- ── Chart ── -->
+  <div class="chart-area" id="chartArea">
+    <canvas id="chart"></canvas>
+    <div class="chart-placeholder" id="placeholder">
+      <div class="icon">◈</div>
+      <div>Load data & run a backtest</div>
+    </div>
+    <div class="tooltip" id="tooltip"></div>
+    <div class="legend" id="legend">
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--accent)"></div>Net Value</div>
+      <div class="legend-item"><div class="legend-swatch dashed" style="border-color:var(--cyan)"></div>Hold Asset</div>
+      <div class="legend-item"><div class="legend-swatch dashed" style="border-color:var(--orange)"></div>Hold 50/50</div>
+      <div class="legend-item"><div class="legend-swatch dashed" style="border-color:var(--text-muted)"></div>Static LP</div>
+    </div>
+  </div>
+
+  <!-- ── Bottom bar ── -->
+  <div class="bottom-bar collapsed" id="bottomBar">
+    <div class="log-header" onclick="toggleLog()">
+      <span class="chevron">▼</span> Rebalance Log <span id="logCount"></span>
+    </div>
+    <div class="log-body">
+      <table class="log-table">
+        <thead><tr>
+          <th>Date</th><th>Price</th><th>Old Range</th><th>→ New Range</th><th>Trigger</th><th>Entry</th><th>Value</th>
+        </tr></thead>
+        <tbody id="logBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Info modal -->
+<div class="modal-overlay" id="infoOverlay">
+  <div class="modal" style="max-width:560px">
+    <h3>clAMM ▸ Backtester</h3>
+
+    <h4>What is this?</h4>
+    <p>A backtesting engine for concentrated liquidity rebalancer strategies. Load historical price data (or generate synthetic data), configure a strategy, and simulate how automated rebalancing would have performed — compared against holding the asset, a 50/50 split, or a static LP position.</p>
+
+    <h4>Strategies</h4>
+    <p><strong>Percentage V2</strong> — rebalances when price drifts from configurable reference points. Supports three independent triggers: lower bound (price nearing the bottom edge), upper bound (nearing the top edge), and center (drifting from the midpoint). Each can be enabled independently. After any trigger fires, an optional cooldown suppresses further triggers.</p>
+    <p><strong>Sequential</strong> — user-defined ordered ranges with explicit trigger zones. When price enters another range's trigger zone, the position is rebalanced to that range's deployment bounds. Useful for manually planned range ladders. Ranges can be imported from the clAMM Analyzer's export.</p>
+
+    <h4>Benchmarks</h4>
+    <p>Each backtest compares the rebalancing strategy against three alternatives, all starting with the same initial deposit:</p>
+    <p><strong>Hold Asset</strong> — 100% in the base asset (e.g. BTC). Pure directional exposure.<br>
+    <strong>Hold 50/50</strong> — half base, half quote. A simple diversified hold.<br>
+    <strong>Static LP</strong> — same initial CL position with leverage and debt, but never rebalanced.</p>
+
+    <h4>Position Parameters</h4>
+    <p><strong>Range ±</strong> — the width of each deployed position, as a percentage each side of center. 0.05 = ±5%, making a 10% total range.<br>
+    <strong>Spread Override</strong> (strategy) — overrides the range width used by the strategy when calculating new bounds after a rebalance. If left empty, the strategy derives it from the current position.<br>
+    <strong>Init Bounds</strong> — how the first position is placed. "Spread" centers on the first price ± Range. "Manual" uses explicit bounds. "Strategy" delegates to the strategy (e.g. sequential picks the best matching range).</p>
+
+    <h4>Chart</h4>
+    <p>Top panel shows price with shaded range bands (shifting at each rebalance). Bottom panel shows net value vs benchmarks, with green/red fill indicating profit or loss vs deposit. Yellow dashed verticals mark rebalance events. Hover for detailed values.</p>
+
+    <h4>Links</h4>
+    <p>
+      <a href="https://x.com/ilo_0x" target="_blank" rel="noopener">𝕏 @ilo_0x</a> ·
+      <a href="https://paragraph.com/ilo0x.eth" target="_blank" rel="noopener">Blog on Paragraph</a>
+    </p>
+
+    <h4>Donate</h4>
+    <p style="color:var(--text-muted);margin-bottom:4px;">If you find this useful:</p>
+    <span class="donate-addr">ilo0x.eth</span>
+    <span class="donate-addr">ilo0x.base.eth</span>
+  </div>
+</div>
+
+<!-- Import modal -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal">
+    <h3>Import Sequential Ranges</h3>
+    <p style="font-size:10px;color:var(--text-muted);margin-bottom:10px">Paste analyzer JSON export (or sequential TOML ranges):</p>
+    <textarea id="importText" placeholder='Paste JSON from analyzer export...'></textarea>
+    <div class="modal-btns">
+      <button onclick="closeImportModal()">Cancel</button>
+      <button class="primary" onclick="doImport()">Import</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"><span class="toast-check">✓</span> <span id="toast-msg"></span></div>
+
+<!-- Frog SVG defs -->
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <g id="frogSitG" transform="translate(0,1185) scale(0.1,-0.1)"><path d="M5849 10456c-4-4-262-34-271-34-9-1-155-110-170-121-14-12-156-198-190-205-101-19-653-66-713-80-55-13-273-62-337-91-57-26-355-128-342-241 6-65-109-305-124-394-52-318 543-1155 620-1215 42-31 137-188 148-203 23-31 37-215-36-273-86-68-297-316-362-345-42-19-363-174-457-130-39 18-318 248-306 264 12 17 88 262 107 306 19 44 54 146 78 198 42 91 235 336 201 385-24 34-203 44-248-6-29-32-48-134-71-171-19-30-98-148-211-225-85-59-280-84-293-72-19 17-215 445-290 538-77 95-135 250-123 302 13 53-86 152-169 150-148-3-198-313-133-313 40-1 230-312 134-344-41-13-211 14-231 26-19 11-310 115-340 128-113 47-203 66-218 74-15 7-249 98-309 144-158 119-432-53-433-142 0-44 128-154 205-131 78 25 343-25 349-25 7 0 186-101 254-135 67-35 215-135 220-135 14 0 9-100-20-100-15 0-197-34-263-39-66-6-257-42-290-46-33-4-249-39-311-20-85 26-292-52-315-95-8-16 1-241 71-277 60-31 244 68 291 85 83 31 652 57 689 67 69 19 141-20 164-25 22-6 172-62 186-66 14-4 169-84 177-84 8 0 84-50 95-50 19 0 202-118 218-143 16-25 239-278 247-297 33-75 384-372 409-392 25-21 108-55 148-75 69-37 305-28 365 18 12 10 212 84 394 175 37 19 114 45 139 58 24 13 167 75 258 119l165 81 116 0 116 1 56-38c106-73 315-517 322-722 11-330 75-492 84-530 4-17 65-132 72-156 14-49 213-335 234-370 20-35 128-175 137-189 50-76 399-337 418-355 52-47 267-200 305-230 39-30 234-172 232-178-10-29-777 130-832 139-55 8-291 74-313 74-22 0-139 30-167 35-27 4-345 77-625 106-52 5-494 43-628 30-137-13-501-278-537-340-34-57-122-31-171-31-64 0-248-145-242-204 7-57 156-150 172-161 35-24 25-259-48-276-49-11-579 215-600 232-12 10-196 109-206 115-38 21-133 173-150 188-67 56-323-220-268-295 30-41 276-95 290-107 33-26 248-66 248-91 0-18 219-229 247-285 51-102-132-301-244-232-91 56-259 22-292-59-39-93 61-250 309-251 199-1 534-62 696-69 206-9 523-143 549-149 17-4 155-98 174-106 18-7 133-76 189-99 57-22 154-71 163-71 9 0 122-80 128-80 5 0 96-65 121-75 44-19 304-167 340-185 36-18 185-107 210-119 25-13 124-84 270-152 52-24 245-122 259-126 14-3 111-40 148-47 128-26 472-173 723-211 52-8 611-81 793-27 82 23 237 171 270 249 43 104-56 408-152 513-54 58-343 379-502 520-236 211-283 319-184 293 56-15 353-45 405-51 52-6 431-40 474-48 54-10 265 26 299 26 13 0 107 30 138 30 49 0 186 76 227 85 46 9 147 81 172 91 31 12 244 220 253 234 18 30 78 231 92 250 13 18 73 140 89 138 15-2 47-122 53-130 6-7 28-157 37-223 8-66 67-347 166-456 39-43 244-112 345-116l120-4 62 40c82 54 245 385 311 511 133 255 229 541 236 553 8 12 84 256 96 297 21 71 76 347 81 410 13 182 121 473 173 635 23 74 119 451 131 485 7 19 53 210 61 228 8 18 90 200 249 282 53 27 227 150 305 175 30 10 203 82 242 91 40 9 255 68 278 107 33 53-132 267-166 267-40 0-292-182-372-170-96 13-239 167-165 313 31 62 138 238 162 276 28 44 187 196 197 219 8 20 54 87 48 135-6 52-141 171-224 165-47-3-167-107-176-211-5-56-105-263-121-284-17-21-108-136-118-103-10 32-195 72-226 76-54 6-130-65-139-151-10-102-235-476-280-566-45-90-144-262-178-404-35-144-21-972-32-1030-6-33-35-125-55-155-29-44-39-162-45-165-11-7-11 985 7 1011 15 23 25 325 47 334 31 12 27 242 40 268 32 62-75 236-152 233-73-2-170 144-165 232 5 70-61 194-92 298-9 32-136 149-155 149-8 0-414 57-482 12-14-9-228-194-325-407-47-105-134-343-148-374-13-31-75-185-102-177-11 4-134 221-157 251-13 17-90 213-105 240-15 28-101 253-132 296-10 14-67 151-74 159-17 21-56 161-70 184-14 24-93 269-106 304-28 79 147-16 242-27 93-10 280 32 300 38 22 7 218 193 229 248 6 32 32 376 15 467-35 190-3 347 0 366 9 47 133 355 157 365 60 26 321 209 362 229 41 20 99 56 114 56 42 0 233 254 108 317-44 22-267-6-289-53-9-19-60-114-134-148-43-20-192-93-215-100-24-7-198-99-223-106-42-12-188 94-215 228-11 56-95 334-37 393 38 39 18 183-63 224-82 41-331-37-332-91-1-55 117-167 128-214 19-82-33-730-65-730-9 0-242 173-291 201-25 14-179 100-235 96-236-18-120-263-41-235 63 22 225-91 251-143 10-19 56-97 69-135 13-38 105-297 113-332 15-72-101-210-164-186-44 17-192 345-343 494-56 55-242 321-259 341-17 20-356 430-478 515-53 38-88 165-95 177-6 12-84 412-259 539-98 71-368 86-370 84z"/></g>
+    <g id="frogJumpG" transform="translate(0,1280) scale(0.1,-0.1)"><path d="M7525 12781c-38-10-295-135-310-167-22-46-184-193-188-212-8-39-335-160-364-168-37-11-294-211-323-261-19-33-60-89-90-123l-56-63-134 31c-112 25-590 54-630 82-26 18-211 3-336-68-77-43-98-147-91-174 8-32-73-235-73-308 0-63 83-210 106-240 27-35 130-285 135-297 7-20-161-146-216-174-138-71-527-483-594-655-82-208-109-355-117-632l-6-227 36-156c31-130 36-171 34-245l-3-89-59 105c-101 179-856 940-993 974-34 9-616 303-672 309-52 6-207-98-269-133-65-36-166-160-187-285-39-234-323-1246-360-1567-33-275-155-735-175-857-18-115-60-227-60-239 0-11-249-339-480-592-162-177-932-1288-999-1496-56-177 45-208 124-97 92 128 73-49 23-297-46-230-93-718-80-747 35-74 243 390 287 535 49 160 131 202 136 25 5-173 56-270 107-225 41 35 128 471 175 669 14 56 33 116 44 134l20 31 21-22c16-18 51-304 83-308 16-2 78 69 113 363 20 171 62 395 79 395 12 0 57-187 107-200 77-21 122 374 135 470 27 200 347 785 490 921 85 80 252 218 264 275l11 61-45 106c-34 80 47 265 143 392 151 200 332 557 332 574 0 16 88 273 101 679 9 252 56 319 84 251 29-72 154-277 168-305 14-28 359-483 572-642 77-58 314-240 394-294 145-98 272-102 276-108 3-5 77-43 96-84 11-22 263-168 311-229 40-50 112-245 119-547 9-460 454-1261 464-1308 4-21-45-135-133-203-57-45-381-264-504-357-293-223-828-883-840-906-11-23-65-100-120-173l-100-132-82-27c-109-36-133-56-165-137l-27-68 17-137c12-92 18-211 19-362l1-225-50-190c-47-181-331-798-361-904-37-129-2-201 36-201 23 0 101-12 117-122 14-104-22-483-14-491 7-7 98 63 107 63 9 0 134-148 134-243-1-128 80-484 80-457 0 14 61 186 91 197 19 7 144 9 164-13 24-25 54-142 64-155 17-21 63 40 81 81l33 75-6 254-6 254 34 66c34 69 150 99 170 108l35 17 0 185c0 140 40 440 40 469 0 29 20 267 11 489-10 277-64 727-63 811l1 152 63 103c78 126 709 713 818 792 137 99 761 692 851 817 116 160 194 573 200 743 5 171 31 1069 14 1191-9 60-38 189-66 288l-51 178-104 142-105 141 28 6c15 4 282 12 465 63 341 95 1151 620 1381 865 128 136 324 370 327 370 3 0 96-281 203-440l111-165 56-20c53-19 645 73 871 171 96 42 295 145 304 145 10 0 249 101 294 58 19-17 29-343 84-377 25-15 158-18 180 8 32 39 5 183-1 216-17 102 108 169 147 101 46-80 234-163 265-145 18 10 108 187 72 257-21 41-276 213-276 221 0 8 60 81 113 91 78 14 201 82 227 125l19 31-28 43c-37 55-204 67-299 16-83-44-292-9-292 14 0 7 111 277 86 313-23 32-213-33-236-132-13-52-83-208-192-266-111-60-446-106-498-109-52-3-434-13-456 20-16 24-86 667-158 855-30 80-57 268-29 285 36 21 291 580 312 661 25 97 156 424 185 525 39 142 73 551 88 630 14 79-112 371-268 491-116 88-551 238-658 238l-85 0-107 92c-134 114-163 123-299 89z"/></g>
+  </defs>
+</svg>
+
+<script>
+// ═══════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════
+
+const $ = id => document.getElementById(id);
+const $$ = sel => document.querySelectorAll(sel);
+
+function showToast(msg) {
+  $('toast-msg').textContent = msg;
+  const t = $('toast');
+  t.classList.add('visible');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('visible'), 2200);
+}
+
+function fmtUSD(v) { return '$' + v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function fmtPct(v) { return (v >= 0 ? '+' : '') + v.toFixed(2) + '%'; }
+function fmtK(v) {
+  if (Math.abs(v) >= 1e6) return '$' + (v / 1e6).toFixed(1) + 'M';
+  if (Math.abs(v) >= 1e3) return '$' + (v / 1e3).toFixed(1) + 'K';
+  return '$' + v.toFixed(0);
+}
+
+// ═══════════════════════════════════════════════
+// CLAMM MATH ENGINE (from analyzer)
+// ═══════════════════════════════════════════════
+
+class CLAMMPosition {
+  constructor({ pLower, pUpper, initialDeposit, leverageRatio, debtType, initialPrice }) {
+    this.pLower = pLower;
+    this.pUpper = pUpper;
+    this.initialDeposit = initialDeposit;
+    this.leverageRatio = leverageRatio;
+    this.debtType = debtType;
+    this.initialPrice = initialPrice || Math.sqrt(pLower * pUpper);
+
+    const totalCapital = initialDeposit * leverageRatio;
+    const borrowed = totalCapital - initialDeposit;
+
+    if (debtType === 'QUOTE') {
+      this.debtQuote = borrowed;
+      this.debtBase = 0;
+    } else {
+      this.debtQuote = 0;
+      this.debtBase = borrowed / this.initialPrice;
+    }
+
+    this.liquidity = this._calcLiquidity(totalCapital, this.initialPrice);
+    this.netLiquidity = this._calcLiquidity(initialDeposit, this.initialPrice);
+  }
+
+  _calcLiquidity(targetValue, price) {
+    const sp = Math.sqrt(price), spl = Math.sqrt(this.pLower), spu = Math.sqrt(this.pUpper);
+    if (price <= this.pLower) return targetValue / ((1/spl - 1/spu) * price);
+    if (price >= this.pUpper) return targetValue / (spu - spl);
+    return targetValue / ((1/sp - 1/spu) * price + (sp - spl));
+  }
+
+  composition(price) {
+    const sp = Math.sqrt(price), spl = Math.sqrt(this.pLower), spu = Math.sqrt(this.pUpper);
+    if (price <= this.pLower) return { base: this.liquidity * (1/spl - 1/spu), quote: 0 };
+    if (price >= this.pUpper) return { base: 0, quote: this.liquidity * (spu - spl) };
+    return { base: this.liquidity * (1/sp - 1/spu), quote: this.liquidity * (sp - spl) };
+  }
+
+  lpValue(price) { const { base, quote } = this.composition(price); return base * price + quote; }
+  debtValue(price) { return this.debtBase * price + this.debtQuote; }
+  netValue(price) { return this.lpValue(price) - this.debtValue(price); }
+}
+
+// ═══════════════════════════════════════════════
+// STRATEGY: PERCENTAGE V2
+// ═══════════════════════════════════════════════
+
+class PercentageV2Strategy {
+  constructor(config) {
+    this._lowerTrigger = config.lowerBoundDeviation ?? null;
+    this._upperTrigger = config.upperBoundDeviation ?? null;
+    this._centerTrigger = config.centerDeviation ?? null;
+    this._cooldownHours = config.cooldownHours ?? 0;
+    this._rangeSpreadOverride = config.rangeSpread ?? null;
+    this._spreadPct = null;
+    this._lastTriggerTime = null;
+  }
+
+  getInitialBounds(price) {
+    const spread = this._rangeSpreadOverride ?? this._centerTrigger ?? 0.05;
+    return [price / (1 + spread), price * (1 + spread)];
+  }
+
+  evaluate(state) {
+    // Cooldown check
+    if (this._lastTriggerTime !== null && this._cooldownHours > 0) {
+      const elapsedH = (state.timestamp - this._lastTriggerTime) / 3600;
+      if (elapsedH < this._cooldownHours) return null;
+    }
+    if (state.positionTickLower == null || state.positionTickUpper == null) return null;
+
+    const centerTick = (state.positionTickLower + state.positionTickUpper) / 2;
+    const halfTicks = (state.positionTickUpper - state.positionTickLower) / 2;
+    this._spreadPct = this._rangeSpreadOverride ?? (Math.pow(1.0001, halfTicks) - 1);
+
+    const reasons = [];
+    let triggerPrice = null;
+
+    // Lower bound trigger
+    if (this._lowerTrigger != null) {
+      const dt = state.tick - state.positionTickLower;
+      const dev = Math.abs(Math.pow(1.0001, dt) - 1);
+      if (dev <= this._lowerTrigger) {
+        const lbp = Math.pow(1.0001, state.positionTickLower);
+        triggerPrice = dt >= 0 ? lbp * (1 + this._lowerTrigger) : lbp * (1 - this._lowerTrigger);
+        reasons.push(`${(dev*100).toFixed(1)}% from lower`);
+      }
+    }
+
+    // Upper bound trigger
+    if (this._upperTrigger != null) {
+      const dt = state.tick - state.positionTickUpper;
+      const dev = Math.abs(Math.pow(1.0001, dt) - 1);
+      if (dev <= this._upperTrigger) {
+        const ubp = Math.pow(1.0001, state.positionTickUpper);
+        if (triggerPrice === null) triggerPrice = dt <= 0 ? ubp * (1 - this._upperTrigger) : ubp * (1 + this._upperTrigger);
+        reasons.push(`${(dev*100).toFixed(1)}% from upper`);
+      }
+    }
+
+    // Center trigger
+    if (this._centerTrigger != null) {
+      const dt = state.tick - centerTick;
+      const dev = Math.abs(Math.pow(1.0001, dt) - 1);
+      if (dev >= this._centerTrigger) {
+        const cp = Math.pow(1.0001, centerTick);
+        if (triggerPrice === null) triggerPrice = dt > 0 ? cp * (1 + this._centerTrigger) : cp * (1 - this._centerTrigger);
+        reasons.push(`${(dev*100).toFixed(1)}% from center`);
+      }
+    }
+
+    if (reasons.length === 0) return null;
+
+    const newLower = state.price / (1 + this._spreadPct);
+    const newUpper = state.price * (1 + this._spreadPct);
+    this._lastTriggerTime = state.timestamp;
+
+    return {
+      newLowerPrice: newLower,
+      newUpperPrice: newUpper,
+      reason: reasons.join(', '),
+      triggerPrice,
+    };
+  }
+}
+
+// ═══════════════════════════════════════════════
+// STRATEGY: SEQUENTIAL
+// ═══════════════════════════════════════════════
+
+class SequentialStrategy {
+  constructor(config) {
+    this.ranges = config.ranges.map(r => ({
+      name: r.name,
+      lower: r.lower,
+      upper: r.upper,
+      lowerTrigger: r.lowerTrigger ?? null,
+      upperTrigger: r.upperTrigger ?? null,
+    }));
+    this.ranges.sort((a, b) => a.lower - b.lower);
+    this._deployedIdx = 0;
+  }
+
+  _findInitialRange(price) {
+    for (let i = 0; i < this.ranges.length; i++) {
+      if (this.ranges[i].lower <= price && price <= this.ranges[i].upper) return i;
+    }
+    if (price < this.ranges[0].lower) return 0;
+    if (price > this.ranges[this.ranges.length - 1].upper) return this.ranges.length - 1;
+    let best = 0, bestDist = Infinity;
+    for (let i = 0; i < this.ranges.length; i++) {
+      const d = Math.min(Math.abs(price - this.ranges[i].lower), Math.abs(price - this.ranges[i].upper));
+      if (d < bestDist) { bestDist = d; best = i; }
+    }
+    return best;
+  }
+
+  getInitialBounds(price) {
+    this._deployedIdx = this._findInitialRange(price);
+    const r = this.ranges[this._deployedIdx];
+    return [r.lower, r.upper];
+  }
+
+  evaluate(state) {
+    const price = state.price;
+    const triggered = [];
+    for (let i = 0; i < this.ranges.length; i++) {
+      if (i === this._deployedIdx) continue;
+      const r = this.ranges[i];
+      if (r.lowerTrigger != null && r.upperTrigger != null && r.lowerTrigger <= price && price <= r.upperTrigger) {
+        triggered.push(i);
+      }
+    }
+    if (triggered.length === 0) return null;
+
+    const targetIdx = triggered.reduce((best, i) =>
+      Math.abs(i - this._deployedIdx) < Math.abs(best - this._deployedIdx) ? i : best
+    );
+    const target = this.ranges[targetIdx];
+    const triggerPrice = [target.lowerTrigger, target.upperTrigger]
+      .reduce((best, b) => Math.abs(price - b) < Math.abs(price - best) ? b : best);
+
+    const dir = targetIdx < this._deployedIdx ? '↓' : '↑';
+    this._deployedIdx = targetIdx;
+
+    return {
+      newLowerPrice: target.lower,
+      newUpperPrice: target.upper,
+      reason: `${dir} → ${target.name} [${target.lower}, ${target.upper}]`,
+      triggerPrice,
+    };
+  }
+}
+
+// ═══════════════════════════════════════════════
+// BACKTEST ENGINE
+// ═══════════════════════════════════════════════
+
+function usdToTick(price) {
+  if (price <= 0) return 0;
+  return Math.floor(Math.log(price) / Math.log(1.0001));
+}
+
+function makePosition(deposit, price, pLower, pUpper, leverage, debtType) {
+  return new CLAMMPosition({
+    pLower, pUpper,
+    initialDeposit: deposit,
+    leverageRatio: leverage,
+    debtType,
+    initialPrice: price,
+  });
+}
+
+function runEngine(priceData, strategy, opts) {
+  const { deposit, leverage, debtType, initSpread, rebalanceSpread, rebalanceCost, initMode, initLower, initUpper } = opts;
+  if (priceData.length < 2) throw new Error('Need >= 2 price points');
+
+  const p0 = priceData[0][1];
+  let pLower, pUpper;
+
+  if (initMode === 'manual') {
+    pLower = initLower; pUpper = initUpper;
+  } else if (initMode === 'strategy') {
+    [pLower, pUpper] = strategy.getInitialBounds(p0);
+  } else {
+    if (initSpread <= 0) throw new Error('spread mode requires Range ± > 0');
+    pLower = p0 / (1 + initSpread);
+    pUpper = p0 * (1 + initSpread);
+  }
+
+  let position = makePosition(deposit, p0, pLower, pUpper, leverage, debtType);
+  const staticPos = makePosition(deposit, p0, pLower, pUpper, leverage, debtType);
+  const holdUnits = deposit / p0;
+  const holdBaseUnits = (deposit / 2) / p0;
+  const holdQuote = deposit / 2;
+
+  const events = [];
+  const timestamps = [], prices = [], netValues = [];
+  const holdValues = [], hold5050Values = [], staticValues = [];
+  let totalCost = 0;
+
+  // Track range bands for chart
+  const rangeBands = [{ startIdx: 0, lower: pLower, upper: pUpper }];
+
+  for (let i = 0; i < priceData.length; i++) {
+    const [ts, price] = priceData[i];
+    const nv = position.netValue(price);
+    timestamps.push(ts);
+    prices.push(price);
+    netValues.push(nv);
+    holdValues.push(holdUnits * price);
+    hold5050Values.push(holdBaseUnits * price + holdQuote);
+    staticValues.push(staticPos.netValue(price));
+
+    const tick = usdToTick(price);
+    const tickL = usdToTick(position.pLower);
+    const tickU = usdToTick(position.pUpper);
+
+    const state = {
+      price, tick, positionTickLower: tickL, positionTickUpper: tickU,
+      outOfRange: price < position.pLower || price > position.pUpper,
+      volatility: null, timestamp: ts, usdPrice0: price, usdPrice1: 1.0,
+    };
+
+    const signal = strategy.evaluate(state);
+    if (signal) {
+      const entryPrice = signal.triggerPrice ?? price;
+      let newL, newU;
+      if (rebalanceSpread > 0) {
+        newL = entryPrice / (1 + rebalanceSpread);
+        newU = entryPrice * (1 + rebalanceSpread);
+      } else {
+        newL = signal.newLowerPrice;
+        newU = signal.newUpperPrice;
+      }
+
+      const exitValue = position.netValue(entryPrice);
+      events.push({
+        timestamp: ts, price,
+        oldLower: position.pLower, oldUpper: position.pUpper,
+        triggerPrice: signal.triggerPrice ?? price,
+        entryPrice, newLower: newL, newUpper: newU,
+        netValueBefore: exitValue, reason: signal.reason,
+      });
+
+      const newDeposit = exitValue - rebalanceCost;
+      totalCost += rebalanceCost;
+      if (newDeposit <= 0) break;
+
+      position = makePosition(newDeposit, entryPrice, newL, newU, leverage, debtType);
+      netValues[netValues.length - 1] = position.netValue(price);
+
+      rangeBands.push({ startIdx: i, lower: newL, upper: newU });
+    }
+  }
+
+  const pFinal = priceData[priceData.length - 1][1];
+  const finalNet = position.netValue(pFinal);
+  const staticNet = staticPos.netValue(pFinal);
+  const holdVal = holdUnits * pFinal;
+  const hold5050Val = holdBaseUnits * pFinal + holdQuote;
+
+  const peak = Math.max(...netValues);
+  const trough = Math.min(...netValues);
+  const maxDD = peak > 0 ? ((trough - peak) / peak) * 100 : 0;
+
+  return {
+    deposit, leverage, debtType, initSpread, rebalanceSpread, rebalanceCost,
+    initLower: pLower, initUpper: pUpper, initMode,
+    finalNet, pnl: finalNet - deposit, pnlPct: ((finalNet - deposit) / deposit) * 100,
+    holdValue: holdVal, holdPnlPct: ((holdVal - deposit) / deposit) * 100,
+    hold5050Value: hold5050Val, hold5050PnlPct: ((hold5050Val - deposit) / deposit) * 100,
+    staticValue: staticNet, staticPnlPct: ((staticNet - deposit) / deposit) * 100,
+    numRebalances: events.length, totalCost, events,
+    timestamps, prices, netValues, holdValues, hold5050Values, staticValues,
+    rangeBands, peak, trough, maxDD,
+    strategyName: opts.strategyName,
+  };
+}
+
+// ═══════════════════════════════════════════════
+// DATA: CSV PARSER + GBM GENERATOR
+// ═══════════════════════════════════════════════
+
+function parseCSV(text) {
+  const lines = text.trim().replace(/\r/g, '').split('\n');
+  if (lines.length < 2) throw new Error('CSV needs header + at least 1 data row');
+
+  const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+  let tsIdx = 0, priceIdx = 1;
+  for (const [i, h] of headers.entries()) {
+    if (['timestamp', 'time', 'date', 'datetime'].includes(h)) tsIdx = i;
+    if (['price', 'close', 'usd_price'].includes(h)) priceIdx = i;
+  }
+
+  const data = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(',');
+    if (cols.length < 2) continue;
+    let ts = parseFloat(cols[tsIdx]);
+    if (isNaN(ts)) {
+      const d = new Date(cols[tsIdx].trim());
+      if (isNaN(d)) continue;
+      ts = d.getTime() / 1000;
+    }
+    const price = parseFloat(cols[priceIdx].replace(/,/g, ''));
+    if (!isNaN(price) && price > 0) data.push([ts, price]);
+  }
+  data.sort((a, b) => a[0] - b[0]);
+  return data;
+}
+
+// Seeded PRNG (mulberry32)
+function mulberry32(seed) {
+  return function() {
+    let t = (seed += 0x6D2B79F5) | 0;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function boxMuller(rng) {
+  let u, v, s;
+  do { u = 2 * rng() - 1; v = 2 * rng() - 1; s = u * u + v * v; } while (s >= 1 || s === 0);
+  const mul = Math.sqrt(-2 * Math.log(s) / s);
+  return u * mul;
+}
+
+function generateGBM(nPoints, startPrice, vol, drift, dtSec, seed) {
+  const rng = seed != null ? mulberry32(seed) : Math.random;
+  const dtYr = dtSec / (365.25 * 24 * 3600);
+  const data = [[Date.now() / 1000, startPrice]];
+  let logP = Math.log(startPrice);
+
+  for (let i = 1; i < nPoints; i++) {
+    const z = boxMuller(rng);
+    logP += (drift - 0.5 * vol * vol) * dtYr + vol * Math.sqrt(dtYr) * z;
+    data.push([data[0][0] + i * dtSec, Math.exp(logP)]);
+  }
+  return data;
+}
+
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+
+let priceData = null;
+let lastResult = null;
+let dataSource = 'csv';
+let seqRangesData = [
+  { name: 'A', lower: 83000, upper: 95500, lt: 84000, ut: 95100 },
+  { name: 'B', lower: 77500, upper: 85000, lt: 78500, ut: 83500 },
+];
+
+// ═══════════════════════════════════════════════
+// UI: DATA SOURCE
+// ═══════════════════════════════════════════════
+
+function setSource(src) {
+  dataSource = src;
+  $('srcCsv').classList.toggle('active', src === 'csv');
+  $('srcSynth').classList.toggle('active', src === 'synth');
+  $('csvPanel').style.display = src === 'csv' ? 'block' : 'none';
+  $('synthPanel').style.display = src === 'synth' ? 'block' : 'none';
+}
+
+// CSV drop zone
+const dropzone = $('dropzone');
+const csvInput = $('csvInput');
+
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('dragover');
+  if (e.dataTransfer.files.length) handleCSVFile(e.dataTransfer.files[0]);
+});
+csvInput.addEventListener('change', () => { if (csvInput.files.length) handleCSVFile(csvInput.files[0]); });
+
+function handleCSVFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      priceData = parseCSV(reader.result);
+      const days = (priceData[priceData.length - 1][0] - priceData[0][0]) / 86400;
+      const p0 = priceData[0][1], p1 = priceData[priceData.length - 1][1];
+      const lo = Math.min(...priceData.map(d => d[1]));
+      const hi = Math.max(...priceData.map(d => d[1]));
+      $('csvInfo').innerHTML = `<span class="csv-loaded">✓ ${file.name}</span><br>${priceData.length} pts · ${days.toFixed(1)}d · ${fmtK(p0)}→${fmtK(p1)} · L ${fmtK(lo)} H ${fmtK(hi)}`;
+      showToast(`Loaded ${priceData.length} price points`);
+    } catch (e) {
+      $('csvInfo').innerHTML = `<span style="color:var(--red)">Error: ${e.message}</span>`;
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ═══════════════════════════════════════════════
+// UI: STRATEGY
+// ═══════════════════════════════════════════════
+
+function onStratChange() {
+  const v = $('stratType').value;
+  $('pctConfig').style.display = v === 'percentage_v2' ? 'block' : 'none';
+  $('seqConfig').style.display = v === 'sequential' ? 'block' : 'none';
+}
+
+function onInitModeChange() {
+  const mode = $('p-initmode').value;
+  $('spreadGroup').style.display = mode === 'spread' ? 'block' : 'none';
+  $('manualBounds').style.display = mode === 'manual' ? 'block' : 'none';
+  if (mode === 'manual') updateManualSpreadHint();
+}
+
+function updateManualSpreadHint() {}
+
+// Bind manual bound inputs
+$('p-initlower').addEventListener('input', updateManualSpreadHint);
+$('p-initupper').addEventListener('input', updateManualSpreadHint);
+
+// Sequential range UI
+function renderSeqRanges() {
+  const c = $('seqRanges');
+  c.innerHTML = '';
+  seqRangesData.forEach((r, i) => {
+    const div = document.createElement('div');
+    div.className = 'seq-range';
+    div.innerHTML = `
+      <div class="seq-range-header">
+        <span class="seq-name">${r.name}</span>
+        <button class="seq-range-del" onclick="removeSeqRange(${i})" title="Remove">×</button>
+      </div>
+      <div class="seq-range-row">
+        <div class="seq-range-field"><span>Deploy Lower</span><input type="number" value="${r.lower}" onchange="seqRangesData[${i}].lower=+this.value"></div>
+        <div class="seq-range-field"><span>Deploy Upper</span><input type="number" value="${r.upper}" onchange="seqRangesData[${i}].upper=+this.value"></div>
+      </div>
+      <div class="seq-range-row">
+        <div class="seq-range-field"><span>Trigger ↓</span><input type="number" value="${r.lt || ''}" onchange="seqRangesData[${i}].lt=+this.value||null" placeholder="—"></div>
+        <div class="seq-range-field"><span>Trigger ↑</span><input type="number" value="${r.ut || ''}" onchange="seqRangesData[${i}].ut=+this.value||null" placeholder="—"></div>
+      </div>
+    `;
+    c.appendChild(div);
+  });
+}
+
+function addSeqRange() {
+  const names = 'ABCDEFGHIJ';
+  seqRangesData.push({ name: names[seqRangesData.length % 10], lower: 0, upper: 0, lt: null, ut: null });
+  renderSeqRanges();
+}
+
+function removeSeqRange(i) {
+  seqRangesData.splice(i, 1);
+  renderSeqRanges();
+}
+
+function openImportModal() { $('importModal').classList.add('open'); }
+function closeImportModal() { $('importModal').classList.remove('open'); }
+
+function doImport() {
+  try {
+    const text = $('importText').value.trim();
+    const data = JSON.parse(text);
+
+    if (data.ranges && Array.isArray(data.ranges)) {
+      // Analyzer export format
+      seqRangesData = data.ranges.map((r, i) => ({
+        name: String.fromCharCode(65 + i),
+        lower: r.pLower,
+        upper: r.pUpper,
+        lt: r.lowerTrigger,
+        ut: r.upperTrigger,
+      }));
+    }
+    renderSeqRanges();
+    closeImportModal();
+    showToast(`Imported ${seqRangesData.length} ranges`);
+  } catch (e) {
+    showToast('Import failed: ' + e.message);
+  }
+}
+
+renderSeqRanges();
+
+// ═══════════════════════════════════════════════
+// RUN BACKTEST
+// ═══════════════════════════════════════════════
+
+function buildStrategy() {
+  const type = $('stratType').value;
+  if (type === 'percentage_v2') {
+    return new PercentageV2Strategy({
+      lowerBoundDeviation: $('pct-lower-on').checked ? parseFloat($('pct-lower').value) : null,
+      upperBoundDeviation: $('pct-upper-on').checked ? parseFloat($('pct-upper').value) : null,
+      centerDeviation: $('pct-center-on').checked ? parseFloat($('pct-center').value) : null,
+      cooldownHours: parseFloat($('pct-cooldown').value) || 0,
+      rangeSpread: $('pct-spread').value ? parseFloat($('pct-spread').value) : null,
+    });
+  } else {
+    return new SequentialStrategy({
+      ranges: seqRangesData.map(r => ({
+        name: r.name, lower: r.lower, upper: r.upper,
+        lowerTrigger: r.lt, upperTrigger: r.ut,
+      })),
+    });
+  }
+}
+
+function loadPriceData() {
+  if (dataSource === 'csv') {
+    if (!priceData) throw new Error('No CSV loaded');
+    return priceData;
+  }
+  return generateGBM(
+    parseInt($('s-points').value),
+    parseFloat($('s-start').value),
+    parseFloat($('s-vol').value),
+    parseFloat($('s-drift').value),
+    parseFloat($('s-interval').value),
+    $('s-seed').value ? parseInt($('s-seed').value) : null,
+  );
+}
+
+function runBacktest() {
+  try {
+    const data = loadPriceData();
+    const strategy = buildStrategy();
+    const initMode = $('p-initmode').value;
+    const initLower = parseFloat($('p-initlower').value) || 0;
+    const initUpper = parseFloat($('p-initupper').value) || 0;
+
+    // Initial position spread — only used in "spread" mode
+    let initSpread = 0;
+    if (initMode === 'spread') {
+      initSpread = parseFloat($('p-spread').value) || 0;
+    }
+
+    // Rebalance spread — comes from the strategy's spread override.
+    // If 0, strategy signal bounds are used as-is.
+    // If the strategy has no override, it derives spread from the current position internally.
+    // The engine override (rangeSpread > 0) is a separate layer on top.
+    let rebalanceSpread = 0;
+    if ($('stratType').value === 'percentage_v2' && $('pct-spread').value) {
+      rebalanceSpread = parseFloat($('pct-spread').value) || 0;
+    }
+
+    const opts = {
+      deposit: parseFloat($('p-deposit').value),
+      leverage: parseFloat($('p-leverage').value),
+      debtType: $('p-debt').value,
+      initSpread,
+      rebalanceSpread,
+      rebalanceCost: parseFloat($('p-cost').value) || 0,
+      initMode,
+      initLower,
+      initUpper,
+      strategyName: $('stratType').value,
+    };
+
+    lastResult = runEngine(data, strategy, opts);
+    updateDisplay(lastResult);
+    showToast(`Done — ${lastResult.numRebalances} rebalances`);
+  } catch (e) {
+    showToast('Error: ' + e.message);
+    console.error(e);
+  }
+}
+
+function updateDisplay(r) {
+  // Header metrics
+  $('headerMetrics').style.opacity = '1';
+  $('hm-final').textContent = fmtUSD(r.finalNet);
+  $('hm-final').className = 'metric-value ' + (r.pnl >= 0 ? 'positive' : 'negative');
+
+  const pnlStr = (r.pnl >= 0 ? '+' : '') + fmtUSD(r.pnl) + ' (' + fmtPct(r.pnlPct) + ')';
+  $('hm-pnl').textContent = pnlStr;
+  $('hm-pnl').className = 'metric-value ' + (r.pnl >= 0 ? 'positive' : 'negative');
+
+  $('hm-rebals').textContent = r.numRebalances;
+  $('hm-dd').textContent = fmtPct(r.maxDD);
+  $('hm-dd').className = 'metric-value negative';
+
+  const vsHold = r.pnlPct - r.holdPnlPct;
+  $('hm-vshold').textContent = fmtPct(vsHold);
+  $('hm-vshold').className = 'metric-value ' + (vsHold >= 0 ? 'positive' : 'negative');
+
+  // Log
+  renderLog(r);
+
+  // Chart
+  $('placeholder').style.display = 'none';
+  $('legend').classList.add('visible');
+  drawChart(r);
+}
+
+function renderLog(r) {
+  const body = $('logBody');
+  body.innerHTML = '';
+  $('logCount').textContent = `(${r.events.length})`;
+
+  r.events.forEach(e => {
+    const tr = document.createElement('tr');
+    const d = new Date(e.timestamp * 1000);
+    const dateStr = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' +
+                    d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    tr.innerHTML = `
+      <td class="mono">${dateStr}</td>
+      <td class="mono">${fmtK(e.price)}</td>
+      <td class="mono">[${fmtK(e.oldLower)}, ${fmtK(e.oldUpper)}]</td>
+      <td class="mono">[${fmtK(e.newLower)}, ${fmtK(e.newUpper)}]</td>
+      <td class="mono">${fmtK(e.triggerPrice)}</td>
+      <td class="mono">${fmtK(e.entryPrice)}</td>
+      <td class="mono">${fmtUSD(e.netValueBefore)}</td>
+    `;
+    body.appendChild(tr);
+  });
+}
+
+function toggleLog() {
+  $('bottomBar').classList.toggle('collapsed');
+  requestAnimationFrame(() => drawChart(lastResult));
+}
+
+// ═══════════════════════════════════════════════
+// CHART: CANVAS RENDERING
+// ═══════════════════════════════════════════════
+
+const canvas = $('chart');
+const ctx = canvas.getContext('2d');
+let dpr = window.devicePixelRatio || 1;
+
+function resizeCanvas() {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = rect.height + 'px';
+  if (lastResult) drawChart(lastResult);
+}
+
+window.addEventListener('resize', resizeCanvas);
+new ResizeObserver(resizeCanvas).observe($('chartArea'));
+
+function getCSS(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+function drawChart(r) {
+  if (!r) return;
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const pad = { left: 70 * dpr, right: 20 * dpr, top: 20 * dpr, bottom: 30 * dpr, mid: 30 * dpr };
+  const chartH = (H - pad.top - pad.bottom - pad.mid) / 2;
+  const chartW = W - pad.left - pad.right;
+
+  if (chartW < 50 || chartH < 30) return;
+
+  const N = r.timestamps.length;
+  const tMin = r.timestamps[0], tMax = r.timestamps[N - 1];
+  const xOf = i => pad.left + (r.timestamps[i] - tMin) / (tMax - tMin) * chartW;
+
+  // ── Top panel: Price + range bands ──
+  const pMin = Math.min(...r.prices) * 0.995;
+  const pMax = Math.max(...r.prices) * 1.005;
+  const yPrice = (p) => pad.top + chartH - (p - pMin) / (pMax - pMin) * chartH;
+
+  // Grid + axes
+  ctx.save();
+  drawGrid(pad.left, pad.top, chartW, chartH, pMin, pMax, tMin, tMax, r.timestamps);
+
+  // Range bands
+  for (let b = 0; b < r.rangeBands.length; b++) {
+    const band = r.rangeBands[b];
+    const endIdx = b + 1 < r.rangeBands.length ? r.rangeBands[b + 1].startIdx : N - 1;
+    const x1 = xOf(band.startIdx), x2 = xOf(endIdx);
+    const yL = yPrice(band.lower), yU = yPrice(band.upper);
+
+    ctx.fillStyle = getCSS('--range-fill');
+    ctx.fillRect(x1, Math.min(yL, yU), x2 - x1, Math.abs(yL - yU));
+
+    ctx.strokeStyle = getCSS('--accent') + '40';
+    ctx.lineWidth = dpr;
+    ctx.setLineDash([4 * dpr, 4 * dpr]);
+    ctx.beginPath();
+    ctx.moveTo(x1, yL); ctx.lineTo(x2, yL);
+    ctx.moveTo(x1, yU); ctx.lineTo(x2, yU);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Rebalance vertical markers
+  r.events.forEach(e => {
+    const idx = r.timestamps.findIndex(t => t >= e.timestamp);
+    if (idx < 0) return;
+    const x = xOf(idx);
+    ctx.strokeStyle = getCSS('--yellow') + '50';
+    ctx.lineWidth = dpr;
+    ctx.setLineDash([2 * dpr, 3 * dpr]);
+    ctx.beginPath();
+    ctx.moveTo(x, pad.top); ctx.lineTo(x, pad.top + chartH);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  });
+
+  // Price line
+  ctx.beginPath();
+  ctx.strokeStyle = getCSS('--text');
+  ctx.lineWidth = 1.5 * dpr;
+  for (let i = 0; i < N; i++) {
+    const x = xOf(i), y = yPrice(r.prices[i]);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  ctx.restore();
+
+  // ── Bottom panel: Value lines ──
+  const vTop = pad.top + chartH + pad.mid;
+  const allVals = [...r.netValues, ...r.holdValues, ...r.hold5050Values, ...r.staticValues];
+  const vMin = Math.min(...allVals) * 0.995;
+  const vMax = Math.max(...allVals) * 1.005;
+  const yVal = (v) => vTop + chartH - (v - vMin) / (vMax - vMin) * chartH;
+
+  ctx.save();
+  drawGrid(pad.left, vTop, chartW, chartH, vMin, vMax, tMin, tMax, r.timestamps);
+
+  // Deposit reference line
+  const yDep = yVal(r.deposit);
+  ctx.strokeStyle = getCSS('--canvas-zero');
+  ctx.lineWidth = dpr;
+  ctx.setLineDash([4 * dpr, 4 * dpr]);
+  ctx.beginPath();
+  ctx.moveTo(pad.left, yDep);
+  ctx.lineTo(pad.left + chartW, yDep);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Fill between net value and deposit
+  ctx.beginPath();
+  for (let i = 0; i < N; i++) {
+    const x = xOf(i), y = yVal(r.netValues[i]);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  for (let i = N - 1; i >= 0; i--) ctx.lineTo(xOf(i), yDep);
+  ctx.closePath();
+  // Split fill by sign
+  ctx.save();
+  ctx.clip();
+  // Green above deposit
+  ctx.fillStyle = getCSS('--green-fill');
+  ctx.fillRect(pad.left, vTop, chartW, yDep - vTop);
+  // Red below deposit
+  ctx.fillStyle = getCSS('--red-fill');
+  ctx.fillRect(pad.left, yDep, chartW, chartH);
+  ctx.restore();
+
+  // Benchmark lines
+  const drawLine = (values, color, dash) => {
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.2 * dpr;
+    ctx.setLineDash(dash ? [5 * dpr, 4 * dpr] : []);
+    ctx.globalAlpha = 0.6;
+    for (let i = 0; i < N; i++) {
+      const x = xOf(i), y = yVal(values[i]);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.setLineDash([]);
+  };
+
+  drawLine(r.staticValues, getCSS('--text-muted'), true);
+  drawLine(r.hold5050Values, getCSS('--orange'), true);
+  drawLine(r.holdValues, getCSS('--cyan'), true);
+
+  // Net value line (on top)
+  ctx.beginPath();
+  ctx.strokeStyle = getCSS('--accent');
+  ctx.lineWidth = 2 * dpr;
+  for (let i = 0; i < N; i++) {
+    const x = xOf(i), y = yVal(r.netValues[i]);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Rebalance markers on value chart
+  r.events.forEach(e => {
+    const idx = r.timestamps.findIndex(t => t >= e.timestamp);
+    if (idx < 0) return;
+    const x = xOf(idx);
+    ctx.strokeStyle = getCSS('--yellow') + '50';
+    ctx.lineWidth = dpr;
+    ctx.setLineDash([2 * dpr, 3 * dpr]);
+    ctx.beginPath();
+    ctx.moveTo(x, vTop); ctx.lineTo(x, vTop + chartH);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  });
+
+  ctx.restore();
+
+  // Panel labels
+  ctx.font = `${9 * dpr}px 'DM Mono', monospace`;
+  ctx.fillStyle = getCSS('--text-muted');
+  ctx.textAlign = 'left';
+  ctx.fillText('PRICE', pad.left + 6 * dpr, pad.top + 12 * dpr);
+  ctx.fillText('VALUE', pad.left + 6 * dpr, vTop + 12 * dpr);
+}
+
+function drawGrid(x0, y0, w, h, vMin, vMax, tMin, tMax, timestamps) {
+  // Horizontal grid lines + Y labels
+  const nLines = 4;
+  ctx.strokeStyle = getCSS('--canvas-grid');
+  ctx.lineWidth = dpr;
+  ctx.font = `${9 * dpr}px 'DM Mono', monospace`;
+  ctx.fillStyle = getCSS('--canvas-label');
+  ctx.textAlign = 'right';
+
+  for (let i = 0; i <= nLines; i++) {
+    const y = y0 + h - (i / nLines) * h;
+    const val = vMin + (i / nLines) * (vMax - vMin);
+    ctx.beginPath();
+    ctx.moveTo(x0, y); ctx.lineTo(x0 + w, y);
+    ctx.stroke();
+    ctx.fillText(fmtK(val), x0 - 6 * dpr, y + 3 * dpr);
+  }
+
+  // X labels (dates)
+  ctx.textAlign = 'center';
+  ctx.fillStyle = getCSS('--canvas-label-dim');
+  const N = timestamps.length;
+  const nXLabels = Math.min(6, Math.floor(w / (80 * dpr)));
+  for (let i = 0; i < nXLabels; i++) {
+    const idx = Math.floor((i / (nXLabels - 1)) * (N - 1));
+    const x = x0 + (timestamps[idx] - tMin) / (tMax - tMin) * w;
+    const d = new Date(timestamps[idx] * 1000);
+    const label = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    ctx.fillText(label, x, y0 + h + 14 * dpr);
+  }
+}
+
+// ── Crosshair / Tooltip ──
+let mouseX = -1, mouseY = -1;
+
+canvas.addEventListener('mousemove', e => {
+  if (!lastResult) return;
+  const rect = canvas.getBoundingClientRect();
+  mouseX = (e.clientX - rect.left) * dpr;
+  mouseY = (e.clientY - rect.top) * dpr;
+  showCrosshair(e.clientX - rect.left, e.clientY - rect.top);
+});
+
+canvas.addEventListener('mouseleave', () => {
+  mouseX = -1;
+  $('tooltip').classList.remove('visible');
+  if (lastResult) drawChart(lastResult);
+});
+
+function showCrosshair(cx, cy) {
+  const r = lastResult;
+  if (!r) return;
+  drawChart(r);
+
+  const W = canvas.width, H = canvas.height;
+  const pad = { left: 70 * dpr, right: 20 * dpr, top: 20 * dpr, bottom: 30 * dpr, mid: 30 * dpr };
+  const chartH = (H - pad.top - pad.bottom - pad.mid) / 2;
+  const chartW = W - pad.left - pad.right;
+  const N = r.timestamps.length;
+  const tMin = r.timestamps[0], tMax = r.timestamps[N - 1];
+
+  // Find nearest data index
+  const relX = (mouseX - pad.left) / chartW;
+  if (relX < 0 || relX > 1) { $('tooltip').classList.remove('visible'); return; }
+  const tTarget = tMin + relX * (tMax - tMin);
+  let idx = 0;
+  for (let i = 1; i < N; i++) {
+    if (Math.abs(r.timestamps[i] - tTarget) < Math.abs(r.timestamps[idx] - tTarget)) idx = i;
+  }
+
+  const xSnap = pad.left + (r.timestamps[idx] - tMin) / (tMax - tMin) * chartW;
+
+  // Draw vertical crosshair
+  ctx.strokeStyle = getCSS('--canvas-crosshair');
+  ctx.lineWidth = dpr;
+  ctx.setLineDash([2 * dpr, 2 * dpr]);
+  ctx.beginPath();
+  ctx.moveTo(xSnap, pad.top);
+  ctx.lineTo(xSnap, H - pad.bottom);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Tooltip
+  const tt = $('tooltip');
+  const d = new Date(r.timestamps[idx] * 1000);
+  const dateStr = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const pnl = r.netValues[idx] - r.deposit;
+  const pnlPct = (pnl / r.deposit) * 100;
+
+  tt.innerHTML = `
+    <div class="tt-row"><span class="tt-label">Date</span><span>${dateStr}</span></div>
+    <div class="tt-row"><span class="tt-label">Price</span><span>${fmtK(r.prices[idx])}</span></div>
+    <div class="tt-row"><span class="tt-label">Net Value</span><span style="color:var(--accent)">${fmtUSD(r.netValues[idx])}</span></div>
+    <div class="tt-row"><span class="tt-label">PnL</span><span class="${pnl >= 0 ? 'positive' : 'negative'}">${fmtPct(pnlPct)}</span></div>
+    <div class="tt-row"><span class="tt-label">Hold</span><span style="color:var(--cyan)">${fmtUSD(r.holdValues[idx])}</span></div>
+    <div class="tt-row"><span class="tt-label">50/50</span><span style="color:var(--orange)">${fmtUSD(r.hold5050Values[idx])}</span></div>
+    <div class="tt-row"><span class="tt-label">Static LP</span><span>${fmtUSD(r.staticValues[idx])}</span></div>
+  `;
+
+  const ttRect = tt.getBoundingClientRect();
+  const chartRect = $('chartArea').getBoundingClientRect();
+  let tx = cx + 16, ty = cy - 10;
+  if (tx + ttRect.width + 10 > chartRect.width) tx = cx - ttRect.width - 16;
+  if (ty < 0) ty = 4;
+  tt.style.left = tx + 'px';
+  tt.style.top = ty + 'px';
+  tt.classList.add('visible');
+}
+
+// ═══════════════════════════════════════════════
+// PRESETS
+// ═══════════════════════════════════════════════
+
+const PRESET_KEY = 'clamm-backtester-presets';
+
+function getPresets() {
+  try { return JSON.parse(localStorage.getItem(PRESET_KEY)) || {}; } catch { return {}; }
+}
+function setPresets(p) { localStorage.setItem(PRESET_KEY, JSON.stringify(p)); }
+
+function getConfigState() {
+  return {
+    dataSource,
+    stratType: $('stratType').value,
+    pctLowerOn: $('pct-lower-on').checked, pctLower: $('pct-lower').value,
+    pctUpperOn: $('pct-upper-on').checked, pctUpper: $('pct-upper').value,
+    pctCenterOn: $('pct-center-on').checked, pctCenter: $('pct-center').value,
+    pctCooldown: $('pct-cooldown').value,
+    pctSpread: $('pct-spread').value,
+    seqRanges: JSON.parse(JSON.stringify(seqRangesData)),
+    deposit: $('p-deposit').value,
+    leverage: $('p-leverage').value,
+    debtType: $('p-debt').value,
+    rangeSpread: $('p-spread').value,
+    rebalanceCost: $('p-cost').value,
+    initMode: $('p-initmode').value,
+    initLower: $('p-initlower').value,
+    initUpper: $('p-initupper').value,
+    synthPoints: $('s-points').value,
+    synthStart: $('s-start').value,
+    synthVol: $('s-vol').value,
+    synthDrift: $('s-drift').value,
+    synthInterval: $('s-interval').value,
+    synthSeed: $('s-seed').value,
+  };
+}
+
+function applyConfigState(s) {
+  if (s.dataSource) setSource(s.dataSource);
+  if (s.stratType) { $('stratType').value = s.stratType; onStratChange(); }
+  if (s.pctLowerOn != null) $('pct-lower-on').checked = s.pctLowerOn;
+  if (s.pctLower) $('pct-lower').value = s.pctLower;
+  if (s.pctUpperOn != null) $('pct-upper-on').checked = s.pctUpperOn;
+  if (s.pctUpper) $('pct-upper').value = s.pctUpper;
+  if (s.pctCenterOn != null) $('pct-center-on').checked = s.pctCenterOn;
+  if (s.pctCenter) $('pct-center').value = s.pctCenter;
+  if (s.pctCooldown) $('pct-cooldown').value = s.pctCooldown;
+  if (s.pctSpread != null) $('pct-spread').value = s.pctSpread;
+  if (s.seqRanges) { seqRangesData = s.seqRanges; renderSeqRanges(); }
+  if (s.deposit) $('p-deposit').value = s.deposit;
+  if (s.leverage) $('p-leverage').value = s.leverage;
+  if (s.debtType) $('p-debt').value = s.debtType;
+  if (s.rangeSpread) $('p-spread').value = s.rangeSpread;
+  if (s.rebalanceCost != null) $('p-cost').value = s.rebalanceCost;
+  if (s.initMode) { $('p-initmode').value = s.initMode; onInitModeChange(); }
+  if (s.initLower) $('p-initlower').value = s.initLower;
+  if (s.initUpper) $('p-initupper').value = s.initUpper;
+  if (s.initMode === 'manual') updateManualSpreadHint();
+  if (s.synthPoints) $('s-points').value = s.synthPoints;
+  if (s.synthStart) $('s-start').value = s.synthStart;
+  if (s.synthVol) $('s-vol').value = s.synthVol;
+  if (s.synthDrift != null) $('s-drift').value = s.synthDrift;
+  if (s.synthInterval) $('s-interval').value = s.synthInterval;
+  if (s.synthSeed != null) $('s-seed').value = s.synthSeed;
+}
+
+function renderPresets() {
+  const presets = getPresets();
+  const list = $('presetList');
+  list.innerHTML = '';
+  for (const [name, state] of Object.entries(presets)) {
+    const item = document.createElement('div');
+    item.className = 'preset-item';
+    item.innerHTML = `<span class="p-name">${name}</span><span class="p-del" onclick="event.stopPropagation();deletePreset('${name}')">×</span>`;
+    item.addEventListener('click', () => { applyConfigState(state); $('presetDropdown').classList.remove('open'); showToast('Loaded: ' + name); });
+    list.appendChild(item);
+  }
+}
+
+function savePreset() {
+  const name = prompt('Preset name:');
+  if (!name) return;
+  const presets = getPresets();
+  presets[name.trim()] = getConfigState();
+  setPresets(presets);
+  renderPresets();
+  showToast('Saved: ' + name);
+}
+
+function deletePreset(name) {
+  const presets = getPresets();
+  delete presets[name];
+  setPresets(presets);
+  renderPresets();
+  showToast('Deleted: ' + name);
+}
+
+// Preset button
+$('presetBtn').addEventListener('click', () => {
+  renderPresets();
+  $('presetDropdown').classList.toggle('open');
+});
+$('presetSaveBtn').addEventListener('click', () => { savePreset(); $('presetDropdown').classList.remove('open'); });
+
+// Close dropdowns on outside click
+document.addEventListener('click', e => {
+  if (!$('presetBtn').contains(e.target) && !$('presetDropdown').contains(e.target)) {
+    $('presetDropdown').classList.remove('open');
+  }
+});
+
+// ═══════════════════════════════════════════════
+// THEME
+// ═══════════════════════════════════════════════
+
+let currentTheme = localStorage.getItem('clamm-bt-theme') || 'dark';
+function applyTheme(t) {
+  currentTheme = t;
+  document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : '');
+  if (t !== 'light') document.documentElement.removeAttribute('data-theme');
+  localStorage.setItem('clamm-bt-theme', t);
+  if (lastResult) requestAnimationFrame(() => drawChart(lastResult));
+}
+applyTheme(currentTheme);
+
+$('themeBtn').addEventListener('click', () => {
+  applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+});
+
+// Info modal
+$('infoBtn').addEventListener('click', () => {
+  $('infoOverlay').classList.toggle('open');
+});
+$('infoOverlay').addEventListener('click', (e) => {
+  if (e.target === $('infoOverlay')) $('infoOverlay').classList.remove('open');
+});
+
+// ═══════════════════════════════════════════════
+// FROG
+// ═══════════════════════════════════════════════
+
+const NS = 'http://www.w3.org/2000/svg';
+const frogL = $('frogLeft'), frogR = $('frogRight');
+
+function mkFrog(sit, mirror, id) {
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('width', 20);
+  svg.setAttribute('height', sit ? 20 : 22);
+  svg.setAttribute('viewBox', sit ? '0 0 1280 1185' : '0 0 1046 1280');
+  svg.setAttribute('fill', 'var(--text-muted)');
+  if (mirror) svg.style.transform = 'scaleX(-1)';
+  svg.id = id;
+  svg.classList.add('frog-svg');
+  const use = document.createElementNS(NS, 'use');
+  use.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '#' + (sit ? 'frogSitG' : 'frogJumpG'));
+  svg.appendChild(use);
+  return svg;
+}
+
+frogL.appendChild(mkFrog(true, false, 'sitL'));
+frogL.appendChild(mkFrog(false, true, 'jumpL'));
+frogL.querySelector('#sitL').classList.add('active');
+
+frogR.appendChild(mkFrog(true, true, 'sitR'));
+frogR.appendChild(mkFrog(false, false, 'jumpR'));
+frogR.querySelector('#sitR').classList.add('active');
+
+let frogOnLeft = true, frogBusy = false;
+
+function showOnly(container, id) {
+  container.querySelectorAll('.frog-svg').forEach(s => s.classList.remove('active'));
+  const el = container.querySelector('#' + id);
+  if (el) el.classList.add('active');
+}
+
+function onAnim(el, cls, cb) {
+  el.classList.add(cls);
+  el.addEventListener('animationend', function h() {
+    el.removeEventListener('animationend', h);
+    el.classList.remove(cls);
+    cb();
+  });
+}
+
+function frogIdleBounce() {
+  if (frogBusy) return;
+  frogBusy = true;
+  const w = frogOnLeft ? frogL : frogR;
+  const jid = frogOnLeft ? 'jumpL' : 'jumpR';
+  const sid = frogOnLeft ? 'sitL' : 'sitR';
+  showOnly(w, jid);
+  onAnim(w, 'idle-jump', () => { showOnly(w, sid); frogBusy = false; });
+}
+
+function frogClickJump() {
+  if (frogBusy) return;
+  frogBusy = true;
+
+  if (frogOnLeft) {
+    showOnly(frogL, 'jumpL');
+    onAnim(frogL, 'launch', () => {
+      frogL.classList.add('hidden');
+      showOnly(frogL, 'sitL');
+      frogR.classList.remove('hidden');
+      showOnly(frogR, 'jumpR');
+      onAnim(frogR, 'land', () => {
+        showOnly(frogR, 'sitR');
+        frogOnLeft = false;
+        frogBusy = false;
+      });
+    });
+  } else {
+    showOnly(frogR, 'jumpR');
+    onAnim(frogR, 'launch-r', () => {
+      frogR.classList.add('hidden');
+      showOnly(frogR, 'sitR');
+      frogL.classList.remove('hidden');
+      showOnly(frogL, 'jumpL');
+      onAnim(frogL, 'land-l', () => {
+        showOnly(frogL, 'sitL');
+        frogOnLeft = true;
+        frogBusy = false;
+      });
+    });
+  }
+}
+
+frogL.addEventListener('click', frogClickJump);
+frogR.addEventListener('click', frogClickJump);
+setInterval(frogIdleBounce, 60000);
+setTimeout(frogIdleBounce, 3000);
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+
+resizeCanvas();
+renderPresets();
+</script>
+</body>
+</html>
