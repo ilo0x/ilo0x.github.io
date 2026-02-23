@@ -1,0 +1,2824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CLAMM Position Analyzer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --bg: #0a0b0f;
+    --surface: #12141a;
+    --surface2: #1a1d26;
+    --border: #252833;
+    --border-accent: #2e3340;
+    --text: #e2e4ea;
+    --text-dim: #7a7f8e;
+    --text-muted: #4a4f5e;
+    --accent: #c084fc;
+    --accent-dim: #7c3aed;
+    --green: #34d399;
+    --green-dim: rgba(52, 211, 153, 0.15);
+    --red: #f87171;
+    --red-dim: rgba(248, 113, 113, 0.15);
+    --cyan: #22d3ee;
+    --orange: #fb923c;
+    --yellow: #fbbf24;
+    --range-fill: rgba(192, 132, 252, 0.06);
+    --drag-glow: rgba(192, 132, 252, 0.4);
+    /* Canvas theme tokens */
+    --canvas-bg: #0a0b0f;
+    --canvas-grid: rgba(255,255,255,0.04);
+    --canvas-zero: rgba(255,255,255,0.12);
+    --canvas-crosshair: rgba(255,255,255,0.15);
+    --canvas-dot-stroke: rgba(255,255,255,0.3);
+    --canvas-label: rgba(122, 127, 142, 0.7);
+    --canvas-label-dim: rgba(122, 127, 142, 0.5);
+    --canvas-label-bright: #fff;
+    --canvas-text-soft: rgba(226,228,234,0.6);
+    --canvas-text-softer: rgba(226,228,234,0.8);
+    --canvas-pill-bg: rgba(30, 34, 46, 0.95);
+    --canvas-panel-conn: rgba(255,255,255,0.06);
+    --green-fill-peak: rgba(52, 211, 153, 0.28);
+    --green-fill-base: rgba(52, 211, 153, 0.03);
+    --red-fill-peak: rgba(248, 113, 113, 0.18);
+    --red-fill-base: rgba(248, 113, 113, 0.01);
+  }
+
+  [data-theme="light"] {
+    --bg: #e8e4df;
+    --surface: #f0ece7;
+    --surface2: #ddd8d2;
+    --border: #c8c2ba;
+    --border-accent: #b8b0a6;
+    --text: #2a2520;
+    --text-dim: #5e564e;
+    --text-muted: #8a827a;
+    --accent: #9333ea;
+    --accent-dim: #7c3aed;
+    --green: #16a34a;
+    --green-dim: rgba(22, 163, 74, 0.12);
+    --red: #dc2626;
+    --red-dim: rgba(220, 38, 38, 0.12);
+    --cyan: #0891b2;
+    --orange: #ea580c;
+    --yellow: #ca8a04;
+    --range-fill: rgba(147, 51, 234, 0.06);
+    --drag-glow: rgba(147, 51, 234, 0.3);
+    --canvas-bg: #e8e4df;
+    --canvas-grid: rgba(0,0,0,0.07);
+    --canvas-zero: rgba(0,0,0,0.18);
+    --canvas-crosshair: rgba(0,0,0,0.14);
+    --canvas-dot-stroke: rgba(0,0,0,0.25);
+    --canvas-label: rgba(60, 52, 44, 0.85);
+    --canvas-label-dim: rgba(60, 52, 44, 0.5);
+    --canvas-label-bright: #2a2520;
+    --canvas-text-soft: rgba(42,37,32,0.55);
+    --canvas-text-softer: rgba(42,37,32,0.75);
+    --canvas-pill-bg: rgba(240, 236, 231, 0.95);
+    --canvas-panel-conn: rgba(0,0,0,0.08);
+    --green-fill-peak: rgba(22, 163, 74, 0.22);
+    --green-fill-base: rgba(22, 163, 74, 0.02);
+    --red-fill-peak: rgba(220, 38, 38, 0.18);
+    --red-fill-base: rgba(220, 38, 38, 0.01);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .app {
+    display: grid;
+    grid-template-columns: 1fr 52px;
+    grid-template-rows: auto 1fr auto;
+    height: 100vh;
+    gap: 0;
+  }
+
+  /* ── Header ── */
+  header {
+    grid-column: 1 / -1;
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  header h1 {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: 0.5px;
+    color: var(--text);
+  }
+  header h1 span { color: var(--accent); font-weight: 700; }
+
+  .header-metrics {
+    display: flex;
+    gap: 28px;
+    font-size: 11px;
+  }
+  .header-metrics .metric {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
+  }
+  .header-metrics .metric-label {
+    color: var(--text-muted);
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .header-metrics .metric-value {
+    font-weight: 500;
+    font-size: 12px;
+  }
+  .positive { color: var(--green); }
+  .negative { color: var(--red); }
+
+  /* ── Chart area ── */
+  .chart-area {
+    position: relative;
+    background: var(--bg);
+    overflow: hidden;
+    cursor: crosshair;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* ── Leverage slider (vertical, right side) ── */
+  .lever-rail {
+    grid-column: 2;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 0;
+    gap: 8px;
+    user-select: none;
+  }
+
+  .lever-label {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    transform: rotate(180deg);
+  }
+
+  .lever-track {
+    position: relative;
+    width: 4px;
+    height: 200px;
+    background: var(--border);
+    border-radius: 2px;
+    cursor: pointer;
+  }
+
+  .lever-fill {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: height 0.1s;
+  }
+
+  .lever-thumb {
+    position: absolute;
+    width: 24px;
+    height: 14px;
+    left: 50%;
+    transform: translate(-50%, 50%);
+    background: var(--accent);
+    border-radius: 3px;
+    cursor: grab;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .lever-thumb:active { cursor: grabbing; }
+  .lever-thumb::after {
+    content: '';
+    width: 10px;
+    height: 2px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 1px;
+  }
+
+  .lever-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    text-align: center;
+    min-width: 36px;
+  }
+
+  /* ── Bottom panel ── */
+  .params-bar {
+    grid-column: 1 / -1;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .param-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .param-group label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .param-group input[type="number"],
+  .param-group select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 5px 8px;
+    border-radius: 4px;
+    width: 100px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .param-group input[type="number"]:focus,
+  .param-group select:focus {
+    border-color: var(--accent);
+  }
+
+  .param-group select {
+    width: 80px;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237a7f8e'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    padding-right: 22px;
+  }
+
+  .divider {
+    width: 1px;
+    height: 24px;
+    background: var(--border);
+  }
+
+  /* ── View range slider ── */
+  .range-slider-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .range-slider-group label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .range-slider-group input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 90px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  .range-slider-group input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: grab;
+  }
+  .range-slider-group input[type="range"]::-webkit-slider-thumb:active { cursor: grabbing; }
+  .range-slider-group input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    background: var(--accent);
+    border-radius: 50%;
+    border: none;
+    cursor: grab;
+  }
+  .range-slider-val {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    min-width: 32px;
+    text-align: center;
+  }
+
+  /* ── Tooltip ── */
+  .tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: var(--surface2);
+    border: 1px solid var(--border-accent);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 11px;
+    line-height: 1.6;
+    z-index: 100;
+    opacity: 0;
+    transition: opacity 0.12s;
+    white-space: nowrap;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .tooltip.visible { opacity: 1; }
+
+  /* ── Drag handles (visual indicator on chart lines) ── */
+  .drag-hint {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 9px;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+  }
+  .chart-area:hover .drag-hint { opacity: 1; }
+
+  /* ── Legend ── */
+  .legend {
+    position: absolute;
+    top: 12px;
+    left: 16px;
+    display: flex;
+    gap: 16px;
+    font-size: 10px;
+    color: var(--text-dim);
+    pointer-events: none;
+    z-index: 10;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .legend-swatch {
+    width: 14px;
+    height: 3px;
+    border-radius: 1px;
+  }
+
+  /* ── Info badges ── */
+  .info-badges {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    display: flex;
+    gap: 8px;
+    z-index: 10;
+    pointer-events: none;
+  }
+  .badge {
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+  .badge strong { color: var(--text); font-weight: 500; }
+
+  /* ── Range menu button ── */
+  .range-menu-btn {
+    width: 28px; height: 28px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.2s, background 0.2s;
+    flex-shrink: 0;
+    padding: 0;
+    position: relative;
+  }
+  .range-menu-btn svg { stroke: var(--text-muted); transition: stroke 0.2s; }
+  .range-menu-btn:hover { border-color: var(--border); background: var(--surface2); }
+  .range-menu-btn:hover svg { stroke: var(--accent); }
+  .range-menu-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent-dim);
+    color: #fff;
+    font-size: 8px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    pointer-events: none;
+  }
+  .range-menu-item {
+    padding: 7px 14px;
+    font-size: 11px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.15s;
+    color: var(--text-dim);
+  }
+  .range-menu-item:hover {
+    background: rgba(192,132,252,0.08);
+    color: var(--text);
+  }
+  .range-menu-item.active {
+    font-weight: 600;
+  }
+  .range-menu-item .range-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .range-menu-item .range-del {
+    margin-left: auto;
+    font-size: 14px;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0 2px;
+    line-height: 1;
+    transition: color 0.15s;
+    opacity: 0;
+  }
+  .range-menu-item:hover .range-del { opacity: 0.7; }
+  .range-menu-item .range-del:hover { color: var(--red); opacity: 1; }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ── Dot menu ── */
+  .menu-btn {
+    width: 28px; height: 28px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    transition: border-color 0.2s, background 0.2s;
+    flex-shrink: 0;
+    padding: 0;
+  }
+  .menu-btn:hover { border-color: var(--border); background: var(--surface2); }
+  .menu-btn span {
+    display: block; width: 4px; height: 4px;
+    background: var(--text-muted);
+    border-radius: 50%;
+    transition: background 0.2s;
+  }
+  .menu-btn:hover span { background: var(--accent); }
+
+  /* ── Lock toggle ── */
+  .lock-btn {
+    width: 28px; height: 28px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.2s, background 0.2s;
+    flex-shrink: 0;
+    padding: 0;
+  }
+  .lock-btn:hover { border-color: var(--border); background: var(--surface2); }
+  .lock-btn svg { transition: stroke 0.2s; stroke: var(--text-muted); }
+  .lock-btn:hover svg { stroke: var(--text-dim); }
+  .lock-btn.locked svg { stroke: var(--text); }
+
+  /* ── Info button ── */
+  .info-btn {
+    width: 28px; height: 28px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.2s, background 0.2s;
+    flex-shrink: 0;
+    padding: 0;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    line-height: 1;
+  }
+  .info-btn:hover { border-color: var(--border); background: var(--surface2); color: var(--text-dim); }
+
+  /* ── Info modal ── */
+  .info-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 500;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+  .info-overlay.open { display: flex; }
+  .info-modal {
+    background: var(--surface);
+    border: 1px solid var(--border-accent);
+    border-radius: 12px;
+    padding: 28px 32px;
+    max-width: 520px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    color: var(--text);
+    font-size: 12px;
+    line-height: 1.7;
+  }
+  .info-modal h2 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--text);
+  }
+  .info-modal h3 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    margin-top: 18px;
+    margin-bottom: 6px;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .info-modal p { margin-bottom: 8px; color: var(--text-dim); }
+  .info-modal a { color: var(--cyan); text-decoration: none; }
+  .info-modal a:hover { text-decoration: underline; }
+  .info-modal .close-btn {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px;
+    line-height: 1;
+  }
+  .info-modal .close-btn:hover { color: var(--text); }
+  .info-modal code {
+    background: var(--surface2);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text);
+  }
+  .info-modal .donate-addr {
+    display: block;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text);
+    margin: 4px 0 6px;
+    word-break: break-all;
+    user-select: all;
+    cursor: text;
+  }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(12px);
+    background: var(--surface2);
+    border: 1px solid var(--border-accent);
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    z-index: 600;
+  }
+  .toast.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .toast .toast-check { color: var(--green); }
+
+  /* ── Preset items ── */
+  .preset-sep {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 0;
+  }
+  .preset-item {
+    padding: 6px 14px;
+    font-size: 11px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    transition: background 0.15s;
+    color: var(--text-dim);
+  }
+  .preset-item:hover { background: rgba(192,132,252,0.08); color: var(--text); }
+  .preset-item .preset-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .preset-item .preset-del {
+    opacity: 0;
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: 0 2px;
+    cursor: pointer;
+    transition: opacity 0.15s, color 0.15s;
+    flex-shrink: 0;
+  }
+  .preset-item:hover .preset-del { opacity: 1; }
+  .preset-item .preset-del:hover { color: var(--red); }
+
+  /* ── Frog mascot ── */
+  .frog-wrap {
+    display: inline-flex;
+    align-items: flex-end;
+    width: 20px; height: 24px;
+    position: relative;
+    cursor: pointer;
+    overflow: visible;
+  }
+  .frog-wrap svg { position: absolute; bottom: 0; left: 0; }
+  .frog-svg { display: none; }
+  .frog-svg.active { display: block; }
+
+  /* Mirror: scaleX(-1) for R versions */
+  .frog-mirror { transform: scaleX(-1); }
+  /* Rotation for dive-down variants */
+  .frog-rot-r { transform: rotate(90deg); }
+  .frog-rot-l { transform: scaleX(-1) rotate(-90deg); }
+
+  /* Left frog in header title */
+  .frog-left { margin-left: 8px; vertical-align: middle; display: inline-flex; }
+  /* Right frog before metrics */
+  .frog-right { margin-right: 8px; vertical-align: middle; display: inline-flex; }
+  .frog-right.hidden { visibility: hidden; pointer-events: none; }
+  .frog-left.hidden { visibility: hidden; pointer-events: none; }
+
+  /* ── Idle bounce (sit-L jumps up and lands back) ── */
+  .frog-wrap.idle-jump { animation: frogIdleJump 0.6s ease-out; }
+  @keyframes frogIdleJump {
+    0%   { transform: scaleY(1) scaleX(1) translateY(0); }
+    10%  { transform: scaleY(0.75) scaleX(1.15) translateY(2px); }
+    30%  { transform: scaleY(1.15) scaleX(0.92) translateY(-16px); }
+    50%  { transform: scaleY(1.05) scaleX(0.97) translateY(-18px); }
+    70%  { transform: scaleY(1.1) scaleX(0.95) translateY(-8px); }
+    85%  { transform: scaleY(0.85) scaleX(1.1) translateY(1px); }
+    100% { transform: scaleY(1) scaleX(1) translateY(0); }
+  }
+
+  /* ── Launch: sit-L squash then jump-R flies up and out ── */
+  .frog-wrap.launch { animation: frogLaunch 0.5s ease-in forwards; }
+  @keyframes frogLaunch {
+    0%   { transform: scaleY(0.75) scaleX(1.15) translateY(2px); opacity: 1; }
+    40%  { transform: scaleY(1.1) scaleX(0.95) translateY(-20px); opacity: 1; }
+    100% { transform: scaleY(1) scaleX(1) translateY(-50px); opacity: 0; }
+  }
+
+  /* ── Land: down-R drops in from above into sit-R ── */
+  .frog-wrap.land { animation: frogLand 0.45s ease-out forwards; }
+  @keyframes frogLand {
+    0%   { transform: translateY(-50px); opacity: 0; }
+    50%  { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+    75%  { transform: translateY(2px) scaleY(0.8) scaleX(1.12); opacity: 1; }
+    100% { transform: translateY(0) scaleY(1) scaleX(1); opacity: 1; }
+  }
+
+  /* ── Return launch (from right, mirrored) ── */
+  .frog-wrap.launch-r { animation: frogLaunchR 0.45s ease-in forwards; }
+  @keyframes frogLaunchR {
+    0%   { transform: scaleX(-1) scaleY(0.75) translateY(2px); opacity: 1; }
+    40%  { transform: scaleX(-1) scaleY(1.1) translateY(-20px); opacity: 1; }
+    100% { transform: scaleX(-1) scaleY(1) translateY(-50px); opacity: 0; }
+  }
+
+  /* ── Return land (on left side) ── */
+  .frog-wrap.land-l { animation: frogLandL 0.4s ease-out forwards; }
+  @keyframes frogLandL {
+    0%   { transform: translateY(-50px); opacity: 0; }
+    50%  { transform: translateY(-10px); opacity: 1; }
+    75%  { transform: translateY(2px) scaleY(0.8) scaleX(1.12); opacity: 1; }
+    100% { transform: translateY(0) scaleY(1) scaleX(1); opacity: 1; }
+  }
+
+  .menu-dropdown {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    right: -4px;
+    background: var(--surface2);
+    border: 1px solid var(--border-accent);
+    border-radius: 8px;
+    padding: 6px 0;
+    min-width: 160px;
+    z-index: 200;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.5);
+    display: none;
+  }
+  .menu-dropdown.open { display: block; }
+  .menu-dropdown .menu-title {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    padding: 6px 14px 4px;
+  }
+  .menu-dropdown .menu-item {
+    padding: 7px 14px;
+    font-size: 11px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.15s;
+    color: var(--text-dim);
+  }
+  .menu-dropdown .menu-item:hover {
+    background: rgba(192,132,252,0.08);
+    color: var(--text);
+  }
+  .menu-dropdown .menu-item.active {
+    color: var(--accent);
+  }
+  .menu-dropdown .menu-item .check {
+    width: 14px;
+    font-size: 12px;
+    color: var(--accent);
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <h1><span>cl</span>AMM <span>Δ</span> Analyzer <a href="https://x.com/ilo_0x" target="_blank" rel="noopener" style="font-size:10px;font-weight:400;color:var(--text-muted);text-decoration:none;margin-left:10px;letter-spacing:0.3px;">by ilo0x</a><span class="frog-wrap frog-left" id="frogLeft" title="click me"></span></h1>
+    <div class="header-metrics">
+      <span class="frog-wrap frog-right hidden" id="frogRight" title="click me"></span>
+
+      <div class="metric" style="cursor:pointer" onclick="togglePnlFormat()">
+        <span class="metric-label">PnL Lower</span>
+        <span class="metric-value" id="hm-pnl-lower">—</span>
+      </div>
+      <div class="metric" style="cursor:pointer" onclick="togglePnlFormat()">
+        <span class="metric-label">PnL Upper</span>
+        <span class="metric-value" id="hm-pnl-upper">—</span>
+      </div>
+      <div class="metric" style="cursor:pointer" onclick="togglePnlFormat()">
+        <span class="metric-label">Max Gain</span>
+        <span class="metric-value positive" id="hm-maxgain">—</span>
+      </div>
+      <div class="metric">
+        <span class="metric-label">Δ-Neutral</span>
+        <span class="metric-value" id="hm-neutral" style="color:var(--cyan)">—</span>
+      </div>
+      <div class="metric">
+        <span class="metric-label">Liquidation</span>
+        <span class="metric-value" id="hm-liq" style="color:var(--orange)">—</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="chart-area" id="chartArea">
+    <canvas id="chart"></canvas>
+    <div class="tooltip" id="tooltip"></div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--accent)"></div>PnL ($)</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--orange);opacity:0.6"></div>IL ($)</div>
+    </div>
+    <div class="info-badges">
+      <div class="badge" id="badge-range"></div>
+      <div class="badge" id="badge-debt"></div>
+    </div>
+    <div class="drag-hint">drag vertical lines to adjust range & entry</div>
+  </div>
+
+  <div class="lever-rail" style="position:relative;">
+    <button class="info-btn" id="infoBtn" aria-label="Info" title="About this tool" style="position:absolute;top:8px;right:12px;">i</button>
+    <div style="position:absolute;top:38px;right:12px;">
+      <button class="info-btn" id="saveBtn" aria-label="Export" title="Export config">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 1h8l3 3v9a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2z"/>
+          <path d="M5 1v4h6V1"/><path d="M5 11h6"/>
+        </svg>
+      </button>
+      <div class="menu-dropdown" id="saveDropdown" style="right:-4px;bottom:auto;top:calc(100% + 4px);min-width:170px;">
+        <div class="menu-title">Export</div>
+        <div class="menu-item" onclick="exportJSON()">
+          <span class="check" style="color:var(--text-muted)">{ }</span> JSON
+        </div>
+        <div class="menu-item" onclick="exportURL()">
+          <span class="check" style="color:var(--text-muted)">#</span> URL
+        </div>
+        <div class="menu-item" onclick="savePreset()">
+          <span class="check" style="color:var(--text-muted)">+</span> Save preset
+        </div>
+        <div id="presetList"></div>
+      </div>
+    </div>
+    <button class="info-btn" id="themeBtn" aria-label="Toggle theme" title="Toggle light/dark theme" style="position:absolute;top:68px;right:12px;">
+      <svg id="themeIcon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="8" cy="8" r="3.5"/><path d="M8 1v1.5"/><path d="M8 13.5V15"/><path d="M1 8h1.5"/><path d="M13.5 8H15"/><path d="M3.05 3.05l1.06 1.06"/><path d="M11.89 11.89l1.06 1.06"/><path d="M3.05 12.95l1.06-1.06"/><path d="M11.89 4.11l1.06-1.06"/>
+      </svg>
+    </button>
+    <button class="lock-btn" id="lockBtn" aria-label="Lock axes" title="Unlocked: entry scales with bounds" style="margin-top:66px;">
+      <svg id="lockIcon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="8" width="10" height="7" rx="1.5"/>
+        <path id="lockShackle" d="M5 8V5a3 3 0 0 1 6 0v1"/>
+      </svg>
+    </button>
+    <div style="position:relative;">
+      <button class="range-menu-btn" id="rangeMenuBtn" aria-label="Ranges" title="Manage overlay ranges">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 14V2"/><path d="M2 14h12"/><path d="M5 10l3-4 3 2 3-5"/>
+        </svg>
+        <span class="range-menu-badge" id="rangeMenuBadge" style="display:none"></span>
+      </button>
+      <div class="menu-dropdown" id="rangeDropdown" style="right:-4px;bottom:auto;top:calc(100% + 4px);min-width:180px;">
+        <div class="menu-title">Ranges</div>
+        <div id="rangeMenuItems"></div>
+        <div class="preset-sep"></div>
+        <div class="menu-item" id="rangeMenuAdd" style="color:var(--accent)">
+          <span class="check" style="color:var(--accent)">+</span> Add range
+        </div>
+      </div>
+    </div>
+    <div style="position:relative;margin-bottom:12px;margin-top:4px;">
+      <button class="menu-btn" id="menuBtn" aria-label="Options">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="menu-dropdown" id="menuDropdown">
+        <div class="menu-title">Label Style</div>
+        <div class="menu-item active" data-style="pills" onclick="setLabelStyle('pills')">
+          <span class="check">✓</span> Axis
+        </div>
+        <div class="menu-item" data-style="floating" onclick="setLabelStyle('floating')">
+          <span class="check"> </span> Cursor
+        </div>
+        <div class="menu-item" data-style="panel" onclick="setLabelStyle('panel')">
+          <span class="check"> </span> Panel
+        </div>
+        <div class="preset-sep"></div>
+        <div class="menu-title">Rebalancer</div>
+        <div class="menu-item" id="triggerToggle" onclick="toggleTriggers()">
+          <span class="check" id="triggerCheck"> </span> Show triggers
+        </div>
+      </div>
+    </div>
+    <span class="lever-label">Leverage</span>
+    <div class="lever-track" id="leverTrack">
+      <div class="lever-fill" id="leverFill"></div>
+      <div class="lever-thumb" id="leverThumb"></div>
+    </div>
+    <span class="lever-value" id="leverValue">2.0x</span>
+  </div>
+
+  <div class="params-bar">
+    <div class="param-group">
+      <label>Deposit $</label>
+      <input type="number" id="p-deposit" value="1000" step="100" min="1">
+    </div>
+    <div class="param-group">
+      <label>Lower</label>
+      <input type="number" id="p-lower" value="80000" step="1000" min="1">
+    </div>
+    <div class="param-group">
+      <label>Upper</label>
+      <input type="number" id="p-upper" value="120000" step="1000" min="1">
+    </div>
+    <div class="param-group">
+      <label>Entry $</label>
+      <input type="number" id="p-entry" value="100000" step="500" min="1">
+    </div>
+    <div class="divider"></div>
+    <div class="param-group">
+      <label>Debt</label>
+      <select id="p-debt">
+        <option value="QUOTE" selected>QUOTE</option>
+        <option value="BASE">BASE</option>
+      </select>
+    </div>
+    <div class="param-group">
+      <label>Margin %</label>
+      <input type="number" id="p-margin" value="-100" step="5">
+    </div>
+    <div class="divider"></div>
+    <div class="range-slider-group">
+      <label>View ±</label>
+      <input type="range" id="p-viewrange" min="1" max="50" value="30" step="1">
+      <span class="range-slider-val" id="p-viewrange-val">30%</span>
+    </div>
+  </div>
+</div>
+
+<!-- Info Modal -->
+<div class="info-overlay" id="infoOverlay">
+  <div class="info-modal" style="position:relative;">
+    <button class="close-btn" id="infoClose">&times;</button>
+    <h2>clAMM Δ Analyzer</h2>
+
+    <h3>What is this?</h3>
+    <p>An interactive tool for analyzing concentrated liquidity AMM (clAMM) positions with leverage. It visualizes how your position's PnL, impermanent loss, and delta change across a price range — helping you understand your risk before deploying capital.</p>
+
+    <h3>Key concepts</h3>
+    <p><strong>Range (Lower / Upper)</strong> — the price bounds of your concentrated liquidity position. Fees are only earned while the price is within this range. A tighter range means more capital efficiency but higher risk of going out of range.</p>
+    <p><strong>Leverage</strong> — multiplies your position size by borrowing additional capital. A 2x leverage on a $1,000 deposit creates a $2,000 LP position with $1,000 borrowed.</p>
+    <p><strong>Entry price</strong> — the market price at which you open the position. This determines initial composition and PnL reference.</p>
+
+    <h3>QUOTE vs BASE debt</h3>
+    <p><strong>QUOTE debt</strong> (e.g. USDC) — you borrow stablecoins. Your debt stays constant in dollar terms regardless of price movement. This gives you <em>long</em> exposure: you profit when price rises because your LP holds BASE assets that appreciate, while your debt doesn't grow.</p>
+    <p><strong>BASE debt</strong> (e.g. ETH/BTC) — you borrow the volatile asset. Your debt grows in dollar terms as price rises. This creates a more <em>delta-neutral</em> or <em>short-biased</em> position: the borrowed BASE offsets the BASE in your LP, reducing directional exposure.</p>
+    <p>In short: QUOTE debt = bullish lean, BASE debt = hedged / bearish lean.</p>
+
+    <h3>Reading the chart</h3>
+    <p>The purple curve shows your net PnL across prices. Green fill = profit, red fill = loss. The dashed orange line shows impermanent loss vs simply holding. Vertical lines are draggable — grab them to adjust bounds and entry.</p>
+    <p><strong>Δ-Neutral</strong> — price(s) where your PnL crosses zero. <strong>Liquidation</strong> — where net value hits your margin threshold.</p>
+
+    <h3>Controls</h3>
+    <p><strong>Lock icon</strong> — when locked, dragging one bound won't move the other or entry. Useful for fine-tuning. <strong>Label styles</strong> — switch between axis labels, cursor-following labels, or a side panel via the dot menu.</p>
+
+    <h3>Links</h3>
+    <p>
+      <a href="https://x.com/ilo_0x" target="_blank" rel="noopener">𝕏 @ilo_0x</a> · 
+      <a href="https://paragraph.com/ilo0x.eth" target="_blank" rel="noopener">Blog on Paragraph</a>
+    </p>
+
+    <h3>Donate</h3>
+    <p style="color:var(--text-muted);margin-bottom:4px;">If you find this useful:</p>
+    <span class="donate-addr">ilo0x.eth</span>
+    <span class="donate-addr">ilo0x.base.eth</span>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// CLAMM MATH ENGINE (ported from Python)
+// ═══════════════════════════════════════════════
+
+class CLAMMPosition {
+  constructor({ pLower, pUpper, initialDeposit, leverageRatio, debtType, initialPrice }) {
+    this.pLower = pLower;
+    this.pUpper = pUpper;
+    this.initialDeposit = initialDeposit;
+    this.leverageRatio = leverageRatio;
+    this.debtType = debtType;
+    this.initialPrice = initialPrice || Math.sqrt(pLower * pUpper);
+
+    const totalCapital = initialDeposit * leverageRatio;
+    const borrowed = totalCapital - initialDeposit;
+
+    if (debtType === 'QUOTE') {
+      this.debtQuote = borrowed;
+      this.debtBase = 0;
+    } else {
+      this.debtQuote = 0;
+      this.debtBase = borrowed / this.initialPrice;
+    }
+
+    this.liquidity = this._calcLiquidity(totalCapital, this.initialPrice);
+    this.netLiquidity = this._calcLiquidity(initialDeposit, this.initialPrice);
+  }
+
+  _calcLiquidity(targetValue, price) {
+    const sp = Math.sqrt(price);
+    const spl = Math.sqrt(this.pLower);
+    const spu = Math.sqrt(this.pUpper);
+    if (price <= this.pLower) {
+      return targetValue / ((1/spl - 1/spu) * price);
+    } else if (price >= this.pUpper) {
+      return targetValue / (spu - spl);
+    } else {
+      return targetValue / ((1/sp - 1/spu) * price + (sp - spl));
+    }
+  }
+
+  composition(price) {
+    const sp = Math.sqrt(price);
+    const spl = Math.sqrt(this.pLower);
+    const spu = Math.sqrt(this.pUpper);
+    let base, quote;
+    if (price <= this.pLower) {
+      base = this.liquidity * (1/spl - 1/spu);
+      quote = 0;
+    } else if (price >= this.pUpper) {
+      base = 0;
+      quote = this.liquidity * (spu - spl);
+    } else {
+      base = this.liquidity * (1/sp - 1/spu);
+      quote = this.liquidity * (sp - spl);
+    }
+    return { base, quote };
+  }
+
+  netComposition(price) {
+    const sp = Math.sqrt(price);
+    const spl = Math.sqrt(this.pLower);
+    const spu = Math.sqrt(this.pUpper);
+    let base, quote;
+    if (price <= this.pLower) {
+      base = this.netLiquidity * (1/spl - 1/spu);
+      quote = 0;
+    } else if (price >= this.pUpper) {
+      base = 0;
+      quote = this.netLiquidity * (spu - spl);
+    } else {
+      base = this.netLiquidity * (1/sp - 1/spu);
+      quote = this.netLiquidity * (sp - spl);
+    }
+    return { base, quote };
+  }
+
+  lpValue(price) {
+    const { base, quote } = this.composition(price);
+    return base * price + quote;
+  }
+
+  debtValue(price) {
+    return this.debtBase * price + this.debtQuote;
+  }
+
+  netValue(price) {
+    return this.lpValue(price) - this.debtValue(price);
+  }
+
+  pnl(price) {
+    return this.netValue(price) - this.initialDeposit;
+  }
+
+  pnlPct(price) {
+    return (this.pnl(price) / this.initialDeposit) * 100;
+  }
+
+  ilUsd(price) {
+    const { base: bi, quote: qi } = this.netComposition(this.initialPrice);
+    const holdValue = (bi + qi / this.initialPrice) * price;
+    return this.netValue(price) - holdValue;
+  }
+
+  ilPct(price) {
+    const { base: bi, quote: qi } = this.netComposition(this.initialPrice);
+    const holdValue = (bi + qi / this.initialPrice) * price;
+    if (holdValue > 0) return ((this.netValue(price) - holdValue) / holdValue) * 100;
+    return 0;
+  }
+
+  deltaBase(price) {
+    const { base } = this.composition(price);
+    return base - this.debtBase;
+  }
+
+  // Find price(s) where PnL = 0
+  findNeutralPrices(prices) {
+    const neutrals = [];
+    for (let i = 0; i < prices.length - 1; i++) {
+      const v1 = this.pnl(prices[i]);
+      const v2 = this.pnl(prices[i + 1]);
+      if (v1 * v2 < 0) {
+        const p1 = prices[i], p2 = prices[i + 1];
+        if (v2 !== v1) {
+          neutrals.push(p1 + (p2 - p1) * (-v1) / (v2 - v1));
+        }
+      }
+    }
+    return neutrals;
+  }
+
+  // Find price where net value hits margin threshold
+  findLiquidation(prices, marginPct) {
+    const threshold = this.initialDeposit * (1 + marginPct / 100);
+    for (let i = 0; i < prices.length - 1; i++) {
+      const v1 = this.netValue(prices[i]) - threshold;
+      const v2 = this.netValue(prices[i + 1]) - threshold;
+      if (v1 * v2 < 0) {
+        const p1 = prices[i], p2 = prices[i + 1];
+        return p1 + (p2 - p1) * (-v1) / (v2 - v1);
+      }
+    }
+    return null;
+  }
+}
+
+
+// ═══════════════════════════════════════════════
+// STATE — Multi-range architecture
+// ═══════════════════════════════════════════════
+
+const RANGE_COLORS = [
+  { main: '#c084fc', dim: 'rgba(192,132,252,', fill: 'rgba(192,132,252,', entry: '#22d3ee', entryDim: 'rgba(34,211,238,' },
+  { main: '#fb923c', dim: 'rgba(251,146,60,', fill: 'rgba(251,146,60,', entry: '#fbbf24', entryDim: 'rgba(251,191,36,' },
+  { main: '#34d399', dim: 'rgba(52,211,153,', fill: 'rgba(52,211,153,', entry: '#a3e635', entryDim: 'rgba(163,230,53,' },
+  { main: '#60a5fa', dim: 'rgba(96,165,250,', fill: 'rgba(96,165,250,', entry: '#c084fc', entryDim: 'rgba(192,132,252,' },
+];
+
+const RANGE_NAMES = ['R1', 'R2', 'R3', 'R4'];
+
+function makeRange(overrides = {}) {
+  return Object.assign({
+    deposit: 1000,
+    pLower: 80000,
+    pUpper: 120000,
+    entry: 100000,
+    leverage: 2.0,
+    debtType: 'QUOTE',
+    marginPct: -100,
+    lowerTrigger: null,
+    upperTrigger: null,
+  }, overrides);
+}
+
+const ranges = [makeRange()];
+let activeRange = 0;
+
+// Convenience: get active range state
+function S() { return ranges[activeRange]; }
+
+const viewState = {
+  viewBelow: -30,
+  viewAbove: 30,
+};
+
+let dragTarget = null; // 'lower' | 'upper' | 'entry' | null
+let hoverPrice = null;
+let hoverLineKey = null;
+let allChartData = []; // array of chartData per range
+let mouseY = 0;
+let labelStyle = 'pills'; // pills | floating | panel
+let entryRatio = null; // ratio of entry within bounds, for proportional scaling
+let lowerTriggerRatio = null; // ratio of lower trigger relative to bounds
+let upperTriggerRatio = null; // ratio of upper trigger relative to bounds
+let axesLocked = false; // when true, dragging one bound doesn't scale entry
+let pnlFormat = 'nominal'; // 'nominal' | 'percent'
+let frozenView = null; // { pMin, pMax } frozen while locked
+let showTriggers = false; // toggle trigger lines on chart
+let measurements = []; // persistent measurement overlays [{x1Price, y1Val, x2Price, y2Val}]
+let activeMeasurement = null; // in-progress measurement being dragged
+
+const $ = id => document.getElementById(id);
+
+// Menu toggle
+$('menuBtn').addEventListener('click', e => {
+  e.stopPropagation();
+  $('menuDropdown').classList.toggle('open');
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('#menuDropdown') && !e.target.closest('#menuBtn')) {
+    $('menuDropdown').classList.remove('open');
+  }
+});
+
+function setLabelStyle(style) {
+  labelStyle = style;
+  document.querySelectorAll('.menu-item[data-style]').forEach(el => {
+    const isActive = el.dataset.style === style;
+    el.classList.toggle('active', isActive);
+    el.querySelector('.check').textContent = isActive ? '✓' : ' ';
+  });
+  draw();
+}
+
+function toggleTriggers() {
+  showTriggers = !showTriggers;
+  $('triggerCheck').textContent = showTriggers ? '✓' : ' ';
+  $('triggerToggle').classList.toggle('active', showTriggers);
+  if (showTriggers) {
+    // Auto-set triggers for any range that doesn't have them yet
+    for (const r of ranges) {
+      const rangeWidth = r.pUpper - r.pLower;
+      if (r.lowerTrigger == null) r.lowerTrigger = r.pLower - rangeWidth * 0.05;
+      if (r.upperTrigger == null) r.upperTrigger = r.pUpper + rangeWidth * 0.05;
+    }
+  }
+  draw();
+}
+
+$('lockBtn').addEventListener('click', () => {
+  axesLocked = !axesLocked;
+  const btn = $('lockBtn');
+  btn.classList.toggle('locked', axesLocked);
+  $('lockShackle').setAttribute('d', axesLocked ? 'M5 8V5a3 3 0 0 1 6 0v3' : 'M5 8V5a3 3 0 0 1 6 0v1');
+  btn.title = axesLocked ? 'Locked: drag bounds independently' : 'Unlocked: entry scales with bounds';
+  if (!axesLocked) {
+    frozenView = null;
+    compute();
+  }
+});
+
+// Info modal
+$('infoBtn').addEventListener('click', () => $('infoOverlay').classList.add('open'));
+$('infoClose').addEventListener('click', () => $('infoOverlay').classList.remove('open'));
+$('infoOverlay').addEventListener('click', e => {
+  if (e.target === $('infoOverlay')) $('infoOverlay').classList.remove('open');
+});
+
+// Save/export dropdown
+$('saveBtn').addEventListener('click', e => {
+  e.stopPropagation();
+  $('saveDropdown').classList.toggle('open');
+  $('menuDropdown').classList.remove('open');
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('#saveBtn') && !e.target.closest('#saveDropdown')) {
+    $('saveDropdown').classList.remove('open');
+  }
+});
+
+// Theme toggle
+let currentTheme = localStorage.getItem('clamm-theme') || 'dark';
+function applyTheme(theme) {
+  currentTheme = theme;
+  document.documentElement.setAttribute('data-theme', theme === 'light' ? 'light' : '');
+  if (theme !== 'light') document.documentElement.removeAttribute('data-theme');
+  // Swap icon: sun in dark mode (click to go light), moon in light mode (click to go dark)
+  $('themeIcon').innerHTML = theme === 'light'
+    ? '<path d="M13.5 8.5a5.5 5.5 0 1 1-7-5.2A4 4 0 0 0 13.5 8.5z"/>'
+    : '<circle cx="8" cy="8" r="3.5"/><path d="M8 1v1.5"/><path d="M8 13.5V15"/><path d="M1 8h1.5"/><path d="M13.5 8H15"/><path d="M3.05 3.05l1.06 1.06"/><path d="M11.89 11.89l1.06 1.06"/><path d="M3.05 12.95l1.06-1.06"/><path d="M11.89 4.11l1.06-1.06"/>';
+  $('themeBtn').title = theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme';
+  try { localStorage.setItem('clamm-theme', theme); } catch {}
+  if (allChartData.length) draw();
+}
+applyTheme(currentTheme);
+$('themeBtn').addEventListener('click', () => {
+  applyTheme(currentTheme === 'light' ? 'dark' : 'light');
+});
+
+function getExportState() {
+  return {
+    activeRange,
+    showTriggers,
+    ranges: ranges.map(r => ({
+      deposit: r.deposit,
+      pLower: Math.round(r.pLower),
+      pUpper: Math.round(r.pUpper),
+      entry: Math.round(r.entry),
+      leverage: r.leverage,
+      debtType: r.debtType,
+      marginPct: r.marginPct,
+      lowerTrigger: r.lowerTrigger != null ? Math.round(r.lowerTrigger) : null,
+      upperTrigger: r.upperTrigger != null ? Math.round(r.upperTrigger) : null,
+    })),
+    viewBelow: viewState.viewBelow,
+    viewAbove: viewState.viewAbove,
+  };
+}
+
+// Backward-compatible import: supports old single-range format and new multi-range
+function importState(data) {
+  if (data.ranges && Array.isArray(data.ranges)) {
+    // New multi-range format
+    ranges.length = 0;
+    data.ranges.forEach(r => ranges.push(makeRange(r)));
+    activeRange = Math.min(data.activeRange || 0, ranges.length - 1);
+  } else {
+    // Old single-range format
+    ranges.length = 0;
+    ranges.push(makeRange({
+      deposit: data.deposit,
+      pLower: data.pLower,
+      pUpper: data.pUpper,
+      entry: data.entry,
+      leverage: data.leverage,
+      debtType: data.debtType,
+      marginPct: data.marginPct,
+    }));
+    activeRange = 0;
+  }
+  if (data.viewBelow !== undefined) viewState.viewBelow = data.viewBelow;
+  if (data.viewAbove !== undefined) viewState.viewAbove = data.viewAbove;
+  if (data.showTriggers !== undefined) {
+    showTriggers = data.showTriggers;
+    $('triggerCheck').textContent = showTriggers ? '✓' : ' ';
+    $('triggerToggle').classList.toggle('active', showTriggers);
+  }
+  syncUIFromState();
+  renderRangeMenu();
+  frozenView = null;
+  compute();
+}
+
+function exportJSON() {
+  $('saveDropdown').classList.remove('open');
+  const data = JSON.stringify(getExportState(), null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'clamm-config.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function showToast(msg) {
+  const t = $('toast');
+  $('toast-msg').textContent = msg;
+  t.classList.add('visible');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('visible'), 2200);
+}
+
+// ── Presets (localStorage) ──
+function getPresets() {
+  try { return JSON.parse(localStorage.getItem('clamm-presets') || '{}'); } catch { return {}; }
+}
+
+function setPresets(presets) {
+  try { localStorage.setItem('clamm-presets', JSON.stringify(presets)); } catch {}
+}
+
+function savePreset() {
+  const name = prompt('Preset name:');
+  if (!name || !name.trim()) return;
+  const presets = getPresets();
+  presets[name.trim()] = getExportState();
+  setPresets(presets);
+  renderPresets();
+  showToast('Preset saved');
+  $('saveDropdown').classList.remove('open');
+}
+
+function loadPreset(name) {
+  const presets = getPresets();
+  const p = presets[name];
+  if (!p) return;
+  importState(p);
+  showToast('Loaded: ' + name);
+  $('saveDropdown').classList.remove('open');
+}
+
+function deletePreset(name, e) {
+  e.stopPropagation();
+  const presets = getPresets();
+  delete presets[name];
+  setPresets(presets);
+  renderPresets();
+  showToast('Deleted: ' + name);
+}
+
+function renderPresets() {
+  const presets = getPresets();
+  const names = Object.keys(presets);
+  const list = $('presetList');
+  if (!names.length) { list.innerHTML = ''; return; }
+  list.innerHTML = '<div class="preset-sep"></div><div class="menu-title">Presets</div>' +
+    names.map(n =>
+      `<div class="preset-item" onclick="loadPreset('${n.replace(/'/g, "\\'")}')">` +
+        `<span class="preset-name">${n}</span>` +
+        `<span class="preset-del" onclick="deletePreset('${n.replace(/'/g, "\\'")}', event)">×</span>` +
+      `</div>`
+    ).join('');
+}
+
+function exportURL() {
+  $('saveDropdown').classList.remove('open');
+  const s = getExportState();
+  // Encode as base64 JSON to keep URL clean with multiple ranges
+  const encoded = btoa(JSON.stringify(s));
+  const url = location.origin + location.pathname + '#mr=' + encoded;
+  navigator.clipboard.writeText(url).then(() => {
+    showToast('URL copied to clipboard');
+  }).catch(() => {
+    prompt('Copy this URL:', url);
+  });
+}
+
+function togglePnlFormat() {
+  pnlFormat = pnlFormat === 'nominal' ? 'percent' : 'nominal';
+  updatePnlDisplay();
+}
+
+let _pnlAtLower = 0, _pnlAtUpper = 0, _pnlPctLower = 0, _pnlPctUpper = 0, _maxGain = 0, _maxGainPct = 0;
+function updatePnlDisplay() {
+  const fmt = v => pnlFormat === 'nominal'
+    ? `$${v >= 0 ? '+' : ''}${v.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
+    : `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`;
+  const vL = pnlFormat === 'nominal' ? _pnlAtLower : _pnlPctLower;
+  const vU = pnlFormat === 'nominal' ? _pnlAtUpper : _pnlPctUpper;
+  const vG = pnlFormat === 'nominal' ? _maxGain : _maxGainPct;
+  const elL = $('hm-pnl-lower');
+  elL.textContent = fmt(vL);
+  elL.className = 'metric-value ' + (vL >= 0 ? 'positive' : 'negative');
+  const elU = $('hm-pnl-upper');
+  elU.textContent = fmt(vU);
+  elU.className = 'metric-value ' + (vU >= 0 ? 'positive' : 'negative');
+  const elG = $('hm-maxgain');
+  elG.textContent = fmt(vG);
+  elG.className = 'metric-value ' + (vG >= 0 ? 'positive' : 'negative');
+}
+
+// ── Sync UI inputs from active range state ──
+function syncUIFromState() {
+  const s = S();
+  $('p-deposit').value = s.deposit;
+  $('p-lower').value = Math.round(s.pLower);
+  $('p-upper').value = Math.round(s.pUpper);
+  $('p-entry').value = Math.round(s.entry);
+  $('p-debt').value = s.debtType;
+  $('p-margin').value = s.marginPct;
+  updateLeverVisual();
+  const vr = Math.abs(viewState.viewBelow);
+  $('p-viewrange').value = vr;
+  $('p-viewrange-val').textContent = vr + '%';
+}
+
+// ── Range menu management ──
+function renderRangeMenu() {
+  const container = $('rangeMenuItems');
+  container.innerHTML = '';
+  ranges.forEach((r, i) => {
+    const item = document.createElement('div');
+    item.className = 'range-menu-item' + (i === activeRange ? ' active' : '');
+    const dot = `<span class="range-dot" style="background:${RANGE_COLORS[i].main}"></span>`;
+    const label = `<span>${RANGE_NAMES[i]}</span>`;
+    const info = `<span style="color:var(--text-muted);font-size:10px;">$${Math.round(r.pLower/1000)}k–${Math.round(r.pUpper/1000)}k</span>`;
+    const del = i > 0 ? `<span class="range-del" data-idx="${i}" title="Remove ${RANGE_NAMES[i]}">×</span>` : '';
+    item.innerHTML = dot + label + info + del;
+    item.addEventListener('click', (e) => {
+      if (e.target.classList.contains('range-del')) {
+        removeRange(parseInt(e.target.dataset.idx));
+        return;
+      }
+      switchRange(i);
+      $('rangeDropdown').classList.remove('open');
+    });
+    container.appendChild(item);
+  });
+  // Update badge
+  const badge = $('rangeMenuBadge');
+  if (ranges.length > 1) {
+    badge.style.display = 'flex';
+    badge.textContent = ranges.length;
+  } else {
+    badge.style.display = 'none';
+  }
+  // Update add button state
+  const addBtn = $('rangeMenuAdd');
+  if (ranges.length >= 4) {
+    addBtn.style.opacity = '0.3';
+    addBtn.style.pointerEvents = 'none';
+  } else {
+    addBtn.style.opacity = '1';
+    addBtn.style.pointerEvents = 'auto';
+  }
+}
+
+// Range dropdown toggle
+$('rangeMenuBtn').addEventListener('click', e => {
+  e.stopPropagation();
+  $('rangeDropdown').classList.toggle('open');
+  // Close other dropdowns
+  $('menuDropdown').classList.remove('open');
+  $('saveDropdown').classList.remove('open');
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('#rangeMenuBtn') && !e.target.closest('#rangeDropdown')) {
+    $('rangeDropdown').classList.remove('open');
+  }
+});
+$('rangeMenuAdd').addEventListener('click', () => {
+  addRange();
+  renderRangeMenu();
+});
+
+function switchRange(idx) {
+  if (idx === activeRange || idx < 0 || idx >= ranges.length) return;
+  activeRange = idx;
+  syncUIFromState();
+  renderRangeMenu();
+  frozenView = null;
+  compute();
+}
+
+function addRange() {
+  if (ranges.length >= 4) return;
+  const src = S();
+  const offset = (src.pUpper - src.pLower) * 0.1;
+  ranges.push(makeRange({
+    deposit: src.deposit,
+    pLower: Math.round(src.pLower + offset),
+    pUpper: Math.round(src.pUpper + offset),
+    entry: Math.round(src.entry),
+    leverage: src.leverage,
+    debtType: src.debtType,
+    marginPct: src.marginPct,
+    lowerTrigger: showTriggers ? Math.round(src.pLower + offset - (src.pUpper - src.pLower) * 0.05) : null,
+    upperTrigger: showTriggers ? Math.round(src.pUpper + offset + (src.pUpper - src.pLower) * 0.05) : null,
+  }));
+  activeRange = ranges.length - 1;
+  syncUIFromState();
+  renderRangeMenu();
+  frozenView = null;
+  compute();
+  showToast('Added ' + RANGE_NAMES[activeRange]);
+}
+
+function removeRange(idx) {
+  if (idx <= 0 || idx >= ranges.length) return;
+  const name = RANGE_NAMES[idx];
+  ranges.splice(idx, 1);
+  if (activeRange >= ranges.length) activeRange = ranges.length - 1;
+  syncUIFromState();
+  renderRangeMenu();
+  frozenView = null;
+  compute();
+  showToast('Removed ' + name);
+}
+
+
+// ═══════════════════════════════════════════════
+// COMPUTE — all ranges
+// ═══════════════════════════════════════════════
+
+function computeOneRange(rangeState, pMin, pMax, N) {
+  const pos = new CLAMMPosition({
+    pLower: rangeState.pLower,
+    pUpper: rangeState.pUpper,
+    initialDeposit: rangeState.deposit,
+    leverageRatio: rangeState.leverage,
+    debtType: rangeState.debtType,
+    initialPrice: rangeState.entry,
+  });
+
+  const prices = [];
+  for (let i = 0; i < N; i++) prices.push(pMin + (pMax - pMin) * i / (N - 1));
+
+  const pnls = prices.map(p => pos.pnl(p));
+  const ils = prices.map(p => pos.ilUsd(p));
+  const pnlPcts = prices.map(p => pos.pnlPct(p));
+  const netVals = prices.map(p => pos.netValue(p));
+
+  const neutrals = pos.findNeutralPrices(prices);
+  const liquidation = pos.findLiquidation(prices, rangeState.marginPct);
+
+  let maxPnl = -Infinity, minPnl = Infinity;
+  for (let i = 0; i < N; i++) {
+    if (pnls[i] > maxPnl) maxPnl = pnls[i];
+    if (pnls[i] < minPnl) minPnl = pnls[i];
+  }
+
+  return { pos, prices, pnls, ils, pnlPcts, netVals, pMin, pMax, N, neutrals, liquidation, maxPnl, minPnl, rangeState };
+}
+
+function compute() {
+  const state = S();
+  // Determine view bounds: union of all ranges
+  const lMult = 1 + viewState.viewBelow / 100;
+  const uMult = 1 + viewState.viewAbove / 100;
+
+  let globalPMin, globalPMax;
+  if (frozenView) {
+    globalPMin = frozenView.pMin;
+    globalPMax = frozenView.pMax;
+  } else {
+    // Use union of all ranges for view
+    let allLower = Infinity, allUpper = -Infinity;
+    for (const r of ranges) {
+      if (r.pLower < allLower) allLower = r.pLower;
+      if (r.pUpper > allUpper) allUpper = r.pUpper;
+    }
+    globalPMin = allLower * lMult;
+    globalPMax = allUpper * uMult;
+  }
+
+  const N = 600;
+
+  // Compute all ranges
+  allChartData = ranges.map(r => computeOneRange(r, globalPMin, globalPMax, N));
+
+  // The active range's chartData drives header metrics
+  const cd = allChartData[activeRange];
+  const pos = cd.pos;
+
+  // Update header metrics (active range only)
+  _pnlAtLower = pos.pnl(state.pLower);
+  _pnlAtUpper = pos.pnl(state.pUpper);
+  _pnlPctLower = pos.pnlPct(state.pLower);
+  _pnlPctUpper = pos.pnlPct(state.pUpper);
+  _maxGain = cd.maxPnl;
+  _maxGainPct = (cd.maxPnl / state.deposit) * 100;
+  updatePnlDisplay();
+  $('hm-neutral').textContent = cd.neutrals.length ? cd.neutrals.map(p => `$${p.toLocaleString(undefined, {maximumFractionDigits: 0})}`).join(', ') : '—';
+  $('hm-liq').textContent = cd.liquidation ? `$${cd.liquidation.toLocaleString(undefined, {maximumFractionDigits: 0})}` : 'None';
+
+  // Badges
+  $('badge-range').innerHTML = `Range <strong>$${state.pLower.toLocaleString()} — $${state.pUpper.toLocaleString()}</strong>` +
+    (ranges.length > 1 ? ` <span style="color:var(--text-muted);font-size:9px">(${RANGE_NAMES[activeRange]})</span>` : '');
+  $('badge-debt').innerHTML = `${state.debtType} debt · <strong>${state.leverage.toFixed(1)}x</strong>`;
+
+  draw();
+}
+
+
+// ═══════════════════════════════════════════════
+// DRAWING — Multi-range with muted inactive ranges
+// ═══════════════════════════════════════════════
+
+function draw() {
+  const canvas = $('chart');
+  const area = $('chartArea');
+  const dpr = window.devicePixelRatio || 1;
+  const W = area.clientWidth;
+  const H = area.clientHeight;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  // Read theme colors from CSS vars
+  const cs = getComputedStyle(document.documentElement);
+  const T = {
+    bg: cs.getPropertyValue('--canvas-bg').trim(),
+    grid: cs.getPropertyValue('--canvas-grid').trim(),
+    zero: cs.getPropertyValue('--canvas-zero').trim(),
+    cross: cs.getPropertyValue('--canvas-crosshair').trim(),
+    dotStroke: cs.getPropertyValue('--canvas-dot-stroke').trim(),
+    label: cs.getPropertyValue('--canvas-label').trim(),
+    labelDim: cs.getPropertyValue('--canvas-label-dim').trim(),
+    labelBright: cs.getPropertyValue('--canvas-label-bright').trim(),
+    textSoft: cs.getPropertyValue('--canvas-text-soft').trim(),
+    textSofter: cs.getPropertyValue('--canvas-text-softer').trim(),
+    pillBg: cs.getPropertyValue('--canvas-pill-bg').trim(),
+    panelConn: cs.getPropertyValue('--canvas-panel-conn').trim(),
+    greenPeak: cs.getPropertyValue('--green-fill-peak').trim(),
+    greenBase: cs.getPropertyValue('--green-fill-base').trim(),
+    redPeak: cs.getPropertyValue('--red-fill-peak').trim(),
+    redBase: cs.getPropertyValue('--red-fill-base').trim(),
+  };
+
+  if (!allChartData.length || !allChartData[activeRange]) return;
+  const chartData = allChartData[activeRange];
+  const state = S();
+  const { prices, pnls, ils, pMin, pMax, N, neutrals, liquidation, maxPnl, minPnl } = chartData;
+
+  // Margins
+  const ml = 72, mr = 64, mt = 44, mb = 36;
+  const cw = W - ml - mr;
+  const ch = H - mt - mb;
+
+  // Value range — union of all ranges' values for consistent Y axis
+  let vMin = Infinity, vMax = -Infinity;
+  for (const cd of allChartData) {
+    for (const v of cd.pnls) { if (v < vMin) vMin = v; if (v > vMax) vMax = v; }
+    for (const v of cd.ils) { if (v < vMin) vMin = v; if (v > vMax) vMax = v; }
+  }
+  const vPad = (vMax - vMin) * 0.1 || 10;
+  vMin -= vPad; vMax += vPad;
+
+  const px = p => ml + (p - pMin) / (pMax - pMin) * cw;
+  const py = v => mt + (1 - (v - vMin) / (vMax - vMin)) * ch;
+  const invPx = x => pMin + (x - ml) / cw * (pMax - pMin);
+  const invPy = y => vMin + (1 - (y - mt) / ch) * (vMax - vMin);
+
+  // Store transform for hit-testing (on active range's chartData)
+  chartData.px = px;
+  chartData.py = py;
+  chartData.invPx = invPx;
+  chartData.invPy = invPy;
+  chartData.ml = ml; chartData.mr = mr; chartData.mt = mt; chartData.mb = mb;
+  chartData.cw = cw; chartData.ch = ch; chartData.W = W; chartData.H = H;
+  chartData.vMin = vMin; chartData.vMax = vMax;
+
+  // ── Background ──
+  ctx.fillStyle = T.bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Range fills for ALL ranges ──
+  for (let ri = 0; ri < ranges.length; ri++) {
+    const r = ranges[ri];
+    const isActive = ri === activeRange;
+    const xLo = px(r.pLower);
+    const xHi = px(r.pUpper);
+    const col = RANGE_COLORS[ri];
+    ctx.fillStyle = isActive ? col.fill + '0.04)' : col.fill + '0.02)';
+    ctx.fillRect(xLo, mt, xHi - xLo, ch);
+  }
+
+  // ── Grid ──
+  ctx.strokeStyle = T.grid;
+  ctx.lineWidth = 1;
+  const nHGrids = 8;
+  for (let i = 0; i <= nHGrids; i++) {
+    const v = vMin + (vMax - vMin) * i / nHGrids;
+    const y = py(v);
+    ctx.beginPath(); ctx.moveTo(ml, y); ctx.lineTo(W - mr, y); ctx.stroke();
+  }
+  const nVGrids = 8;
+  for (let i = 0; i <= nVGrids; i++) {
+    const p = pMin + (pMax - pMin) * i / nVGrids;
+    const x = px(p);
+    ctx.beginPath(); ctx.moveTo(x, mt); ctx.lineTo(x, H - mb); ctx.stroke();
+  }
+
+  // ── Zero line ──
+  const y0 = py(0);
+  if (y0 > mt && y0 < H - mb) {
+    ctx.strokeStyle = T.zero;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(ml, y0); ctx.lineTo(W - mr, y0); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // ═══ Draw INACTIVE ranges first (muted) ═══
+  for (let ri = 0; ri < allChartData.length; ri++) {
+    if (ri === activeRange) continue;
+    const cd = allChartData[ri];
+    const col = RANGE_COLORS[ri];
+
+    // IL curve (very muted)
+    ctx.strokeStyle = col.dim + '0.2)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    for (let i = 0; i < cd.N; i++) {
+      const x = px(cd.prices[i]);
+      const y = py(cd.ils[i]);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // PnL curve (muted)
+    ctx.strokeStyle = col.dim + '0.35)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i < cd.N; i++) {
+      const x = px(cd.prices[i]);
+      const y = py(cd.pnls[i]);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // Vertical lines (muted — solid, more visible)
+    const r = ranges[ri];
+    const drawMutedLine = (price, color) => {
+      const x = px(price);
+      if (x < ml || x > W - mr) return;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(x, mt); ctx.lineTo(x, H - mb); ctx.stroke();
+    };
+    drawMutedLine(r.pLower, col.dim + '0.4)');
+    drawMutedLine(r.pUpper, col.dim + '0.4)');
+    drawMutedLine(r.entry, col.entryDim + '0.3)');
+  }
+
+  // ═══ Draw ACTIVE range (full brightness) ═══
+  const acol = RANGE_COLORS[activeRange];
+
+  // ── PnL fill (green above 0, red below) ──
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(ml, mt, cw, ch);
+  ctx.clip();
+
+  ctx.beginPath();
+  ctx.moveTo(px(prices[0]), Math.min(py(0), H - mb));
+  for (let i = 0; i < N; i++) {
+    const x = px(prices[i]);
+    const y = py(Math.max(pnls[i], 0));
+    if (i === 0) ctx.moveTo(x, py(0));
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(px(prices[N-1]), py(0));
+  ctx.closePath();
+  const gGreen = ctx.createLinearGradient(0, py(vMax), 0, py(0));
+  gGreen.addColorStop(0, T.greenPeak);
+  gGreen.addColorStop(1, T.greenBase);
+  ctx.fillStyle = gGreen;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(px(prices[0]), py(0));
+  for (let i = 0; i < N; i++) {
+    const x = px(prices[i]);
+    const y = py(Math.min(pnls[i], 0));
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(px(prices[N-1]), py(0));
+  ctx.closePath();
+  const gRed = ctx.createLinearGradient(0, py(0), 0, py(vMin));
+  gRed.addColorStop(0, T.redBase);
+  gRed.addColorStop(1, T.redPeak);
+  ctx.fillStyle = gRed;
+  ctx.fill();
+  ctx.restore();
+
+  // ── IL curve (active) ──
+  ctx.strokeStyle = 'rgba(251, 146, 60, 0.45)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([5, 4]);
+  ctx.beginPath();
+  for (let i = 0; i < N; i++) {
+    const x = px(prices[i]);
+    const y = py(ils[i]);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // ── PnL curve (active) ──
+  ctx.strokeStyle = acol.main;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i < N; i++) {
+    const x = px(prices[i]);
+    const y = py(pnls[i]);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // ── Vertical lines (draggable) — active range only ──
+  const lineData = [
+    { price: state.pLower, color: acol.dim + '0.5)', bright: acol.main, label: 'LOWER', key: 'lower' },
+    { price: state.pUpper, color: acol.dim + '0.5)', bright: acol.main, label: 'UPPER', key: 'upper' },
+    { price: state.entry, color: acol.entryDim + '0.55)', bright: acol.entry, label: 'ENTRY', key: 'entry' },
+  ];
+
+  const drawLine = (ld) => {
+    const x = px(ld.price);
+    if (x < ml || x > W - mr) return;
+    const hot = dragTarget === ld.key || (!dragTarget && hoverLineKey === ld.key);
+    ctx.strokeStyle = hot ? ld.bright : ld.color;
+    ctx.lineWidth = hot ? 2 : 1.5;
+    ctx.beginPath(); ctx.moveTo(x, mt); ctx.lineTo(x, H - mb); ctx.stroke();
+  };
+
+  const fmtPrice = p => '$' + p.toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+  const sorted = [...lineData].sort((a, b) => a.price - b.price);
+
+  for (const ld of lineData) drawLine(ld);
+
+  // ── Label rendering per style ──
+  if (labelStyle === 'pills') {
+    const labelH = 35;
+    const minGap = 8;
+    const sortedForSlot = [...lineData].map(ld => ({ ...ld, x: px(ld.price) })).sort((a, b) => a.x - b.x);
+    const ySlotMap = {};
+    let prevRight = -Infinity, prevSlot = 0;
+    for (const s of sortedForSlot) {
+      ctx.font = '500 12px "DM Mono", monospace';
+      const tw = ctx.measureText(fmtPrice(s.price)).width + 16;
+      const myLeft = s.x - tw;
+      if (myLeft < prevRight + minGap) {
+        prevSlot++;
+      } else {
+        prevSlot = 0;
+      }
+      ySlotMap[s.key] = mt + 6 + prevSlot * (labelH + 4);
+      prevRight = s.x;
+    }
+
+    for (const ld of lineData) {
+      const x = Math.round(px(ld.price));
+      if (x < ml || x > W - mr) continue;
+      const hot = dragTarget === ld.key || (!dragTarget && hoverLineKey === ld.key);
+      const priceStr = fmtPrice(ld.price);
+      const baseY = Math.round(ySlotMap[ld.key]);
+      ctx.textAlign = 'right';
+      ctx.font = (hot ? '700' : '500') + ' 12px "DM Mono", monospace';
+      ctx.fillStyle = hot ? ld.bright : ld.color;
+      ctx.fillText(ld.label, x - 8, baseY + 10);
+      ctx.font = (hot ? '700' : '400') + ' 12px "DM Mono", monospace';
+      ctx.fillStyle = hot ? T.labelBright : T.label;
+      ctx.fillText(priceStr, x - 8, baseY + 25);
+      ctx.fillStyle = hot ? ld.bright : ld.color;
+      ctx.globalAlpha = hot ? 1 : 0.6;
+      ctx.beginPath(); ctx.arc(x, baseY + 2, hot ? 4 : 3, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    const xEntry = px(state.entry);
+    if (xEntry >= ml && xEntry <= W - mr) {
+      const distToLower = ((state.entry - state.pLower) / (state.pUpper - state.pLower) * 100).toFixed(1);
+      const distToUpper = ((state.pUpper - state.entry) / (state.pUpper - state.pLower) * 100).toFixed(1);
+      const bottomY = H - mb - 8;
+      ctx.font = '400 10px "DM Mono", monospace';
+      ctx.fillStyle = acol.entryDim + '0.4)';
+      ctx.textAlign = 'right';
+      ctx.fillText('−' + distToLower + '%', xEntry - 8, bottomY);
+      ctx.textAlign = 'left';
+      ctx.fillText('+' + distToUpper + '%', xEntry + 8, bottomY);
+    }
+
+  } else if (labelStyle === 'floating') {
+    for (const ld of lineData) {
+      const x = px(ld.price);
+      if (x < ml || x > W - mr) continue;
+      const hot = dragTarget === ld.key || (!dragTarget && hoverLineKey === ld.key);
+      if (!hot) continue;
+      const yPos = Math.max(mt + 16, Math.min(mouseY, H - mb - 16));
+      const priceStr = fmtPrice(ld.price);
+      ctx.font = '600 11px "DM Mono", monospace';
+      const tw = Math.max(ctx.measureText(priceStr).width, ctx.measureText(ld.label).width) + 14;
+      const pillX = x - tw - 10;
+      const pillW = tw;
+      const pillH = 34;
+      ctx.fillStyle = T.pillBg;
+      ctx.beginPath(); ctx.roundRect(pillX, yPos - pillH / 2, pillW, pillH, 4); ctx.fill();
+      ctx.strokeStyle = ld.bright;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.roundRect(pillX, yPos - pillH / 2, pillW, pillH, 4); ctx.stroke();
+      ctx.strokeStyle = ld.bright;
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(pillX + pillW, yPos); ctx.lineTo(x, yPos); ctx.stroke();
+      ctx.textAlign = 'center';
+      ctx.font = '600 9px "DM Mono", monospace';
+      ctx.fillStyle = ld.bright;
+      ctx.fillText(ld.label, pillX + pillW / 2, yPos - 4);
+      ctx.font = '600 11px "DM Mono", monospace';
+      ctx.fillStyle = T.labelBright;
+      ctx.fillText(priceStr, pillX + pillW / 2, yPos + 11);
+      ctx.fillStyle = ld.bright;
+      ctx.beginPath(); ctx.arc(x, yPos, 4, 0, Math.PI * 2); ctx.fill();
+    }
+
+  } else if (labelStyle === 'panel') {
+    const panelX = ml + 8;
+    let panelY = mt + 30;
+    ctx.font = '500 9px "DM Mono", monospace';
+    ctx.fillStyle = T.labelDim;
+    ctx.textAlign = 'left';
+    ctx.fillText('BOUNDS' + (ranges.length > 1 ? ' (' + RANGE_NAMES[activeRange] + ')' : ''), panelX, panelY);
+    panelY += 6;
+    for (const ld of lineData) {
+      panelY += 18;
+      const hot = dragTarget === ld.key || (!dragTarget && hoverLineKey === ld.key);
+      ctx.fillStyle = hot ? ld.bright : ld.color;
+      ctx.beginPath(); ctx.arc(panelX + 4, panelY - 4, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.font = (hot ? '600' : '400') + ' 10px "DM Mono", monospace';
+      ctx.fillStyle = hot ? ld.bright : T.textSoft;
+      ctx.fillText(ld.label, panelX + 14, panelY);
+      ctx.fillStyle = hot ? T.labelBright : T.textSofter;
+      ctx.font = (hot ? '600' : '400') + ' 11px "DM Mono", monospace';
+      ctx.fillText(fmtPrice(ld.price), panelX + 72, panelY);
+      if (hot) {
+        const lx = px(ld.price);
+        ctx.strokeStyle = T.panelConn;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath(); ctx.moveTo(panelX + 140, panelY - 4); ctx.lineTo(lx, panelY - 4); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+  }
+
+  // Neutral prices
+  for (const np of neutrals) {
+    const x = Math.round(px(np));
+    if (x >= ml && x <= W - mr) {
+      ctx.strokeStyle = 'rgba(251, 191, 36, 0.4)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 3]);
+      ctx.beginPath(); ctx.moveTo(x, mt); ctx.lineTo(x, H - mb); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(251, 191, 36, 0.6)';
+      ctx.font = '500 9px "DM Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('Δ0', x, Math.round(H - mb + 12));
+    }
+  }
+
+  // Liquidation price
+  if (liquidation) {
+    const x = Math.round(px(liquidation));
+    if (x >= ml && x <= W - mr) {
+      ctx.strokeStyle = 'rgba(248, 113, 113, 0.5)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 2]);
+      ctx.beginPath(); ctx.moveTo(x, mt); ctx.lineTo(x, H - mb); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(248, 113, 113, 0.7)';
+      ctx.font = '500 9px "DM Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('LIQ', x, Math.round(H - mb + 12));
+    }
+  }
+
+  // ── Axes labels ──
+  ctx.fillStyle = T.label;
+  ctx.font = '500 10px "DM Mono", monospace';
+
+  ctx.textAlign = 'center';
+  for (let i = 0; i <= nVGrids; i++) {
+    const p = pMin + (pMax - pMin) * i / nVGrids;
+    ctx.fillText('$' + p.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ','), Math.round(px(p)), Math.round(H - mb + 14));
+  }
+
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= nHGrids; i++) {
+    const v = vMin + (vMax - vMin) * i / nHGrids;
+    ctx.fillText('$' + v.toFixed(0), Math.round(ml - 6), Math.round(py(v) + 3));
+  }
+  ctx.textAlign = 'left';
+  for (let i = 0; i <= nHGrids; i++) {
+    const v = vMin + (vMax - vMin) * i / nHGrids;
+    const pct = (v / state.deposit) * 100;
+    ctx.fillText(pct.toFixed(0) + '%', Math.round(W - mr + 6), Math.round(py(v) + 3));
+  }
+
+  // ── Trigger lines (vertical, all ranges) ──
+  if (showTriggers) {
+    for (let ri = 0; ri < ranges.length; ri++) {
+      const r = ranges[ri];
+      const isActive = ri === activeRange;
+      const col = RANGE_COLORS[ri];
+
+      const drawTrigger = (price, label, key, isLower) => {
+        if (price == null) return;
+        const x1 = Math.round(px(price));
+        if (x1 < ml || x1 > W - mr) return;
+        const hot = isActive && (dragTarget === key || (!dragTarget && hoverLineKey === key));
+        const alpha = hot ? 0.9 : (isActive ? 0.55 : 0.25);
+        const lw = hot ? 2 : (isActive ? 1.5 : 1);
+        ctx.strokeStyle = col.dim + alpha + ')';
+        ctx.lineWidth = lw;
+        ctx.setLineDash([6, 3]);
+        ctx.beginPath(); ctx.moveTo(x1, mt); ctx.lineTo(x1, H - mb); ctx.stroke();
+        ctx.setLineDash([]);
+        // Label at top
+        ctx.fillStyle = col.dim + (hot ? 0.9 : alpha) + ')';
+        ctx.font = (hot ? '700' : '500') + ' 8px "DM Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, x1, Math.round(mt - 4));
+        // Percentage from appropriate range bound
+        const rangeWidth = r.pUpper - r.pLower;
+        const pct = rangeWidth > 0
+          ? (isLower
+              ? ((price - r.pLower) / rangeWidth * 100)
+              : ((r.pUpper - price) / rangeWidth * 100))
+          : 0;
+        const pctSign = isLower ? '−' : '+';
+        ctx.fillStyle = col.dim + (hot ? 0.9 : (isActive ? 0.45 : 0.2)) + ')';
+        ctx.font = (hot ? '600' : '400') + ' 9px "DM Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(pctSign + Math.abs(pct).toFixed(1) + '%', x1, Math.round(mt - 14));
+        // Price label when hot
+        if (hot) {
+          ctx.font = '600 10px "DM Mono", monospace';
+          ctx.fillStyle = col.main;
+          ctx.fillText(fmtPrice(price), x1, Math.round(mt - 25));
+        }
+      };
+
+      drawTrigger(r.lowerTrigger, (isActive ? '' : RANGE_NAMES[ri] + ' ') + 'LT', 'lowerTrigger', true);
+      drawTrigger(r.upperTrigger, (isActive ? '' : RANGE_NAMES[ri] + ' ') + 'UT', 'upperTrigger', false);
+    }
+  }
+
+  // ── Hover crosshair ──
+  if (hoverPrice !== null && hoverPrice >= pMin && hoverPrice <= pMax) {
+    const x = px(hoverPrice);
+    ctx.strokeStyle = T.cross;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 2]);
+    ctx.beginPath(); ctx.moveTo(x, mt); ctx.lineTo(x, H - mb); ctx.stroke();
+    ctx.setLineDash([]);
+
+    const idx = Math.round((hoverPrice - pMin) / (pMax - pMin) * (N - 1));
+    if (idx >= 0 && idx < N) {
+      const yDot = py(pnls[idx]);
+      ctx.fillStyle = acol.main;
+      ctx.beginPath();
+      ctx.arc(x, yDot, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = T.dotStroke;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+  }
+
+  // ── Measurements ──
+  const allMeasures = [...measurements];
+  if (activeMeasurement) allMeasures.push(activeMeasurement);
+  const closeButtons = [];
+
+  for (let mi = 0; mi < allMeasures.length; mi++) {
+    const m = allMeasures[mi];
+    const x1 = Math.round(px(m.x1Price));
+    const y1 = Math.round(py(m.y1Val));
+    const x2 = Math.round(px(m.x2Price));
+    const y2 = Math.round(py(m.y2Val));
+
+    const greenC = getComputedStyle(document.documentElement).getPropertyValue('--green').trim();
+    const redC = getComputedStyle(document.documentElement).getPropertyValue('--red').trim();
+
+    // Compute deltas
+    const dPrice = m.x2Price - m.x1Price;
+    const dPricePct = (dPrice / m.x1Price) * 100;
+    const dVal = m.y2Val - m.y1Val;
+    const dValPct = (dVal / state.deposit) * 100;
+
+    const arrowSize = 5;
+    const drawArrowhead = (fx, fy, tx, ty) => {
+      const angle = Math.atan2(ty - fy, tx - fx);
+      ctx.beginPath();
+      ctx.moveTo(tx, ty);
+      ctx.lineTo(tx - arrowSize * Math.cos(angle - 0.4), ty - arrowSize * Math.sin(angle - 0.4));
+      ctx.moveTo(tx, ty);
+      ctx.lineTo(tx - arrowSize * Math.cos(angle + 0.4), ty - arrowSize * Math.sin(angle + 0.4));
+      ctx.stroke();
+    };
+
+    // Origin dot
+    ctx.fillStyle = T.labelBright;
+    ctx.beginPath(); ctx.arc(x1, y1, 3, 0, Math.PI * 2); ctx.fill();
+
+    // ── Horizontal arrow (price): from origin → x2 at y1 ──
+    const hColor = dPrice >= 0 ? greenC : redC;
+    ctx.strokeStyle = hColor;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y1); ctx.stroke();
+    if (Math.abs(x2 - x1) > 8) drawArrowhead(x1, y1, x2, y1);
+
+    // Price label centered on horizontal arrow
+    const priceLine = `${dPrice >= 0 ? '+' : ''}$${Math.abs(dPrice).toFixed(0)} (${dPricePct >= 0 ? '+' : ''}${dPricePct.toFixed(1)}%)`;
+    ctx.font = '600 9px "DM Mono", monospace';
+    const hLabelW = ctx.measureText(priceLine).width + 8;
+    const hLabelX = (x1 + x2) / 2;
+    // Place label below arrow if arrow goes up, above if goes down
+    const hLabelY = y2 < y1 ? y1 + 14 : y1 - 10;
+    ctx.fillStyle = T.pillBg;
+    ctx.beginPath(); ctx.roundRect(hLabelX - hLabelW / 2, hLabelY - 7, hLabelW, 14, 2); ctx.fill();
+    ctx.fillStyle = hColor;
+    ctx.textAlign = 'center';
+    ctx.fillText(priceLine, hLabelX, hLabelY + 3);
+
+    // ── Vertical arrow (value): from origin → y2 at x1 ──
+    const vColor = dVal >= 0 ? greenC : redC;
+    ctx.strokeStyle = vColor;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1, y2); ctx.stroke();
+    if (Math.abs(y2 - y1) > 8) drawArrowhead(x1, y1, x1, y2);
+
+    // Endpoint dot on vertical
+    ctx.fillStyle = vColor;
+    ctx.beginPath(); ctx.arc(x1, y2, 2.5, 0, Math.PI * 2); ctx.fill();
+
+    // Value label next to vertical arrow
+    const valLine = `${dVal >= 0 ? '+' : ''}$${Math.abs(dVal).toFixed(1)} (${dValPct >= 0 ? '+' : ''}${dValPct.toFixed(1)}%)`;
+    ctx.font = '600 9px "DM Mono", monospace';
+    const vLabelW = ctx.measureText(valLine).width + 8;
+    const vLabelY = (y1 + y2) / 2;
+    // Place label on the side away from the horizontal arrow
+    let vLabelX = x2 > x1 ? x1 - vLabelW - 4 : x1 + 8;
+    if (vLabelX < ml) vLabelX = x1 + 8;
+    if (vLabelX + vLabelW > W - mr) vLabelX = x1 - vLabelW - 4;
+    ctx.fillStyle = T.pillBg;
+    ctx.beginPath(); ctx.roundRect(vLabelX, vLabelY - 7, vLabelW, 14, 2); ctx.fill();
+    ctx.fillStyle = vColor;
+    ctx.textAlign = 'left';
+    ctx.fillText(valLine, vLabelX + 4, vLabelY + 3);
+
+    // Dashed connector closing the L (from x2,y1 to x2,y2 and x1,y2 to x2,y2)
+    ctx.strokeStyle = T.textSoft;
+    ctx.lineWidth = 0.5;
+    ctx.setLineDash([2, 2]);
+    ctx.beginPath(); ctx.moveTo(x2, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x1, y2); ctx.lineTo(x2, y2); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Endpoint dot at corner
+    ctx.fillStyle = T.labelBright;
+    ctx.globalAlpha = 0.4;
+    ctx.beginPath(); ctx.arc(x2, y2, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // × close button (only on finalized measurements)
+    if (mi < measurements.length) {
+      const cx = x1;
+      const cy = y1 - 12;
+      const cr = 7;
+      ctx.fillStyle = T.pillBg;
+      ctx.beginPath();
+      ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = T.textSoft;
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.moveTo(cx - 2.5, cy - 2.5); ctx.lineTo(cx + 2.5, cy + 2.5);
+      ctx.moveTo(cx + 2.5, cy - 2.5); ctx.lineTo(cx - 2.5, cy + 2.5);
+      ctx.stroke();
+      closeButtons.push({ idx: mi, cx, cy, r: cr });
+    }
+  }
+  // Store for click detection
+  measurements._closeButtons = closeButtons;
+}
+
+
+// ═══════════════════════════════════════════════
+// INTERACTION: DRAG ON CHART (active range only)
+// ═══════════════════════════════════════════════
+
+const DRAG_THRESHOLD = 12; // pixels
+
+function getClosestLine(mouseX) {
+  if (!allChartData.length || !allChartData[activeRange]) return null;
+  const chartData = allChartData[activeRange];
+  const { px } = chartData;
+  const state = S();
+  const lines = [
+    { key: 'lower', x: px(state.pLower) },
+    { key: 'upper', x: px(state.pUpper) },
+    { key: 'entry', x: px(state.entry) },
+  ];
+  // Add trigger lines if visible
+  if (showTriggers) {
+    if (state.lowerTrigger != null) lines.push({ key: 'lowerTrigger', x: px(state.lowerTrigger) });
+    if (state.upperTrigger != null) lines.push({ key: 'upperTrigger', x: px(state.upperTrigger) });
+  }
+  let closest = null, minDist = Infinity;
+  for (const l of lines) {
+    const d = Math.abs(mouseX - l.x);
+    if (d < minDist) { minDist = d; closest = l.key; }
+  }
+  return minDist < DRAG_THRESHOLD ? closest : null;
+}
+
+const chartArea = $('chartArea');
+
+chartArea.addEventListener('dblclick', e => {
+  const rect = chartArea.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const nearest = getClosestLine(mx);
+  if (nearest === 'entry') {
+    const state = S();
+    state.entry = (state.pLower + state.pUpper) / 2;
+    $('p-entry').value = Math.round(state.entry);
+    compute();
+  }
+});
+
+chartArea.addEventListener('mousedown', e => {
+  const rect = chartArea.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+
+  // Check if clicking a measurement × button
+  if (measurements._closeButtons) {
+    for (const btn of measurements._closeButtons) {
+      const dx = mx - btn.cx, dy = my - btn.cy;
+      if (dx * dx + dy * dy <= btn.r * btn.r + 16) {
+        measurements.splice(btn.idx, 1);
+        draw();
+        e.preventDefault();
+        return;
+      }
+    }
+  }
+
+  dragTarget = getClosestLine(mx);
+  if (dragTarget) {
+    const state = S();
+    if (dragTarget === 'lower' || dragTarget === 'upper') {
+      const rangeWidth = state.pUpper - state.pLower;
+      entryRatio = (state.entry - state.pLower) / rangeWidth;
+      lowerTriggerRatio = state.lowerTrigger != null ? (state.lowerTrigger - state.pLower) / rangeWidth : null;
+      upperTriggerRatio = state.upperTrigger != null ? (state.upperTrigger - state.pLower) / rangeWidth : null;
+      if (axesLocked) {
+        const lMult = 1 + viewState.viewBelow / 100;
+        const uMult = 1 + viewState.viewAbove / 100;
+        let allLower = Infinity, allUpper = -Infinity;
+        for (const r of ranges) {
+          if (r.pLower < allLower) allLower = r.pLower;
+          if (r.pUpper > allUpper) allUpper = r.pUpper;
+        }
+        frozenView = { pMin: allLower * lMult, pMax: allUpper * uMult };
+      }
+    }
+    chartArea.style.cursor = 'ew-resize';
+    e.preventDefault();
+  } else {
+    // Start measurement tool
+    const chartData = allChartData[activeRange];
+    if (chartData && mx >= chartData.ml && mx <= chartData.W - chartData.mr && my >= chartData.mt && my <= chartData.H - chartData.mb) {
+      const price = chartData.invPx(mx);
+      const val = chartData.invPy(my);
+      activeMeasurement = { x1Price: price, y1Val: val, x2Price: price, y2Val: val };
+      dragTarget = 'measure';
+      chartArea.style.cursor = 'crosshair';
+      e.preventDefault();
+    }
+  }
+});
+
+window.addEventListener('mousemove', e => {
+  const rect = chartArea.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  mouseY = e.clientY - rect.top;
+  const chartData = allChartData[activeRange];
+
+  if (dragTarget === 'measure' && activeMeasurement && chartData) {
+    const price = chartData.invPx(mx);
+    const val = chartData.invPy(mouseY);
+    activeMeasurement.x2Price = price;
+    activeMeasurement.y2Val = val;
+
+    // Update tooltip during measurement drag
+    hoverPrice = price;
+    const { prices, pnls, ils, pnlPcts, netVals, N, pMin, pMax, pos } = chartData;
+    const idx = Math.round((price - pMin) / (pMax - pMin) * (N - 1));
+    if (idx >= 0 && idx < N) {
+      const tip = $('tooltip');
+      const p = prices[idx];
+      const pnl = pnls[idx];
+      const il = ils[idx];
+      const net = netVals[idx];
+      const delta = pos.deltaBase(p);
+      const pnlP = pnlPcts[idx];
+      const state = S();
+
+      tip.innerHTML = `
+        ${ranges.length > 1 ? `<div style="color:${RANGE_COLORS[activeRange].main};margin-bottom:2px;font-size:9px">${RANGE_NAMES[activeRange]}</div>` : ''}
+        <div style="color:var(--text-dim);margin-bottom:3px">$${p.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
+        <div style="color:${pnl >= 0 ? 'var(--green)' : 'var(--red)'}">PnL: $${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)} (${pnlP >= 0 ? '+' : ''}${pnlP.toFixed(1)}%)</div>
+        <div style="color:var(--orange)">IL: $${il.toFixed(2)}</div>
+        <div>Net: $${net.toFixed(2)}</div>
+        <div style="color:var(--text-dim)">Δ: ${delta >= 0 ? '+' : ''}${delta.toFixed(6)} BASE</div>
+      `;
+      tip.classList.add('visible');
+
+      // Position away from the measurement being drawn
+      const tipW = 180, tipH = 95;
+      const mx1 = chartData.px(activeMeasurement.x1Price);
+      const my1 = chartData.py(activeMeasurement.y1Val);
+      const candidates = [
+        { x: mx + 16, y: mouseY - tipH - 8 },
+        { x: mx - tipW - 16, y: mouseY - tipH - 8 },
+        { x: mx + 16, y: mouseY + 16 },
+        { x: mx - tipW - 16, y: mouseY + 16 },
+      ];
+      // Pick candidate furthest from measurement origin
+      let best = candidates[0], bestDist = -1;
+      for (const c of candidates) {
+        if (c.x < 0 || c.x + tipW > chartData.W || c.y < 0 || c.y + tipH > chartData.H) continue;
+        const d = Math.sqrt((c.x + tipW/2 - mx1)**2 + (c.y + tipH/2 - my1)**2);
+        if (d > bestDist) { bestDist = d; best = c; }
+      }
+      tip.style.left = best.x + 'px';
+      tip.style.top = best.y + 'px';
+    }
+
+    draw();
+    return;
+  }
+
+  if (dragTarget && dragTarget !== 'measure' && chartData) {
+    let price = chartData.invPx(mx);
+    price = Math.max(1, price);
+    const state = S();
+
+    if (dragTarget === 'lower') {
+      state.pLower = Math.min(price, state.pUpper - 100);
+      if (!axesLocked) {
+        const rw = state.pUpper - state.pLower;
+        state.entry = state.pLower + entryRatio * rw;
+        $('p-entry').value = Math.round(state.entry);
+        if (lowerTriggerRatio != null) state.lowerTrigger = state.pLower + lowerTriggerRatio * rw;
+        if (upperTriggerRatio != null) state.upperTrigger = state.pLower + upperTriggerRatio * rw;
+      }
+      $('p-lower').value = Math.round(state.pLower);
+    } else if (dragTarget === 'upper') {
+      state.pUpper = Math.max(price, state.pLower + 100);
+      if (!axesLocked) {
+        const rw = state.pUpper - state.pLower;
+        state.entry = state.pLower + entryRatio * rw;
+        $('p-entry').value = Math.round(state.entry);
+        if (lowerTriggerRatio != null) state.lowerTrigger = state.pLower + lowerTriggerRatio * rw;
+        if (upperTriggerRatio != null) state.upperTrigger = state.pLower + upperTriggerRatio * rw;
+      }
+      $('p-upper').value = Math.round(state.pUpper);
+    } else if (dragTarget === 'entry') {
+      state.entry = price;
+      $('p-entry').value = Math.round(state.entry);
+    } else if (dragTarget === 'lowerTrigger') {
+      state.lowerTrigger = price;
+      draw();
+      return;
+    } else if (dragTarget === 'upperTrigger') {
+      state.upperTrigger = price;
+      draw();
+      return;
+    }
+    compute();
+    return;
+  }
+
+  // Hover
+  if (mx >= (chartData?.ml || 0) && mx <= (chartData ? chartData.W - chartData.mr : 0) && chartData) {
+    hoverPrice = chartData.invPx(mx);
+    const my = e.clientY - rect.top;
+    const state = S();
+
+    const { prices, pnls, ils, pnlPcts, netVals, N, pMin, pMax, pos } = chartData;
+    const idx = Math.round((hoverPrice - pMin) / (pMax - pMin) * (N - 1));
+    if (idx >= 0 && idx < N) {
+      const tip = $('tooltip');
+      const p = prices[idx];
+      const pnl = pnls[idx];
+      const il = ils[idx];
+      const net = netVals[idx];
+      const delta = pos.deltaBase(p);
+      const pnlP = pnlPcts[idx];
+
+      tip.innerHTML = `
+        ${ranges.length > 1 ? `<div style="color:${RANGE_COLORS[activeRange].main};margin-bottom:2px;font-size:9px">${RANGE_NAMES[activeRange]}</div>` : ''}
+        <div style="color:var(--text-dim);margin-bottom:3px">$${p.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
+        <div style="color:${pnl >= 0 ? 'var(--green)' : 'var(--red)'}">PnL: $${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)} (${pnlP >= 0 ? '+' : ''}${pnlP.toFixed(1)}%)</div>
+        <div style="color:var(--orange)">IL: $${il.toFixed(2)}</div>
+        <div>Net: $${net.toFixed(2)}</div>
+        <div style="color:var(--text-dim)">Δ: ${delta >= 0 ? '+' : ''}${delta.toFixed(6)} BASE</div>
+      `;
+      tip.classList.add('visible');
+
+      // Position tooltip, avoiding measurement areas
+      const tipW = 180, tipH = 95;
+      let tx, ty;
+
+      // If actively measuring, hide tooltip
+      if (dragTarget === 'measure') {
+        tip.classList.remove('visible');
+      }
+
+      // When measurements exist, find the best quadrant away from them
+      if (measurements.length > 0 || activeMeasurement) {
+        const allM = [...measurements];
+        if (activeMeasurement) allM.push(activeMeasurement);
+
+        // For each candidate position, compute min distance to any measurement element
+        const candidates = [
+          { x: mx + 16, y: my - tipH - 8, label: 'ar' },
+          { x: mx - tipW - 16, y: my - tipH - 8, label: 'al' },
+          { x: mx + 16, y: my + 16, label: 'br' },
+          { x: mx - tipW - 16, y: my + 16, label: 'bl' },
+        ];
+
+        // Score each candidate: higher = better (further from measurements)
+        let bestScore = -Infinity, bestC = candidates[0];
+        for (const c of candidates) {
+          // Skip if out of bounds
+          if (c.x < 0 || c.x + tipW > chartData.W || c.y < 0 || c.y + tipH > chartData.H) {
+            continue;
+          }
+          let minDist = Infinity;
+          for (const m of allM) {
+            const mx1 = chartData.px(m.x1Price), my1 = chartData.py(m.y1Val);
+            const mx2 = chartData.px(m.x2Price), my2 = chartData.py(m.y2Val);
+            // Check distance to origin, endpoint, horizontal arrow midpoint, vertical arrow midpoint
+            const points = [
+              [mx1, my1], [mx2, my1], [mx1, my2], [(mx1+mx2)/2, my1], [mx1, (my1+my2)/2]
+            ];
+            for (const [px2, py2] of points) {
+              // Distance from point to rectangle
+              const cx = Math.max(c.x, Math.min(px2, c.x + tipW));
+              const cy = Math.max(c.y, Math.min(py2, c.y + tipH));
+              const d = Math.sqrt((px2 - cx) ** 2 + (py2 - cy) ** 2);
+              if (d < minDist) minDist = d;
+            }
+          }
+          if (minDist > bestScore) { bestScore = minDist; bestC = c; }
+        }
+        tx = bestC.x; ty = bestC.y;
+      } else {
+        let tx2 = mx + 16;
+        let ty2 = my - 40;
+        if (tx2 + tipW > chartData.W) tx2 = mx - tipW - 16;
+        if (ty2 < 0) ty2 = my + 16;
+        tx = tx2; ty = ty2;
+      }
+
+      tip.style.left = tx + 'px';
+      tip.style.top = ty + 'px';
+    }
+
+    const near = getClosestLine(mx);
+    hoverLineKey = near;
+    chartArea.style.cursor = near ? 'ew-resize' : 'crosshair';
+
+    draw();
+  } else {
+    hoverPrice = null;
+    $('tooltip').classList.remove('visible');
+    if (!dragTarget) chartArea.style.cursor = 'crosshair';
+    draw();
+  }
+});
+
+window.addEventListener('mouseup', () => {
+  if (dragTarget === 'measure' && activeMeasurement) {
+    // Only save if there's meaningful distance
+    const dp = Math.abs(activeMeasurement.x2Price - activeMeasurement.x1Price);
+    const dv = Math.abs(activeMeasurement.y2Val - activeMeasurement.y1Val);
+    if (dp > 10 || dv > 0.5) {
+      measurements.push({ ...activeMeasurement });
+    }
+    activeMeasurement = null;
+  }
+  dragTarget = null;
+  if (frozenView && !axesLocked) {
+    frozenView = null;
+    compute();
+  }
+  chartArea.style.cursor = 'crosshair';
+});
+
+chartArea.addEventListener('mouseleave', () => {
+  if (!dragTarget) {
+    hoverPrice = null;
+    hoverLineKey = null;
+    $('tooltip').classList.remove('visible');
+    draw();
+  }
+});
+
+
+// ═══════════════════════════════════════════════
+// LEVERAGE SLIDER
+// ═══════════════════════════════════════════════
+
+const LEVER_MIN = 1.0;
+const LEVER_MAX = 7.0;
+
+function updateLeverVisual() {
+  const track = $('leverTrack');
+  const th = track.clientHeight;
+  const pct = (S().leverage - LEVER_MIN) / (LEVER_MAX - LEVER_MIN);
+  $('leverFill').style.height = (pct * 100) + '%';
+  $('leverThumb').style.bottom = (pct * th - 7) + 'px';
+  $('leverValue').textContent = S().leverage.toFixed(1) + 'x';
+}
+
+let leverDragging = false;
+
+function leverFromY(clientY) {
+  const track = $('leverTrack');
+  const rect = track.getBoundingClientRect();
+  const pct = 1 - (clientY - rect.top) / rect.height;
+  return Math.round(Math.min(LEVER_MAX, Math.max(LEVER_MIN, LEVER_MIN + pct * (LEVER_MAX - LEVER_MIN))) * 10) / 10;
+}
+
+$('leverTrack').addEventListener('mousedown', e => {
+  leverDragging = true;
+  S().leverage = leverFromY(e.clientY);
+  updateLeverVisual();
+  compute();
+  e.preventDefault();
+});
+
+window.addEventListener('mousemove', e => {
+  if (!leverDragging) return;
+  S().leverage = leverFromY(e.clientY);
+  updateLeverVisual();
+  compute();
+});
+
+window.addEventListener('mouseup', () => { leverDragging = false; });
+
+
+// ═══════════════════════════════════════════════
+// PARAM INPUTS
+// ═══════════════════════════════════════════════
+
+function bindInput(id, key, parser = parseFloat) {
+  const el = $(id);
+  el.addEventListener('input', () => {
+    const v = parser(el.value);
+    if (!isNaN(v)) {
+      S()[key] = v;
+      compute();
+    }
+  });
+}
+
+bindInput('p-deposit', 'deposit');
+bindInput('p-lower', 'pLower');
+bindInput('p-upper', 'pUpper');
+bindInput('p-entry', 'entry');
+bindInput('p-margin', 'marginPct');
+
+$('p-viewrange').addEventListener('input', () => {
+  const v = parseInt($('p-viewrange').value);
+  viewState.viewBelow = -v;
+  viewState.viewAbove = v;
+  $('p-viewrange-val').textContent = v + '%';
+  frozenView = null;
+  compute();
+});
+bindInput('p-margin', 'marginPct');
+
+$('p-debt').addEventListener('change', () => {
+  S().debtType = $('p-debt').value;
+  compute();
+});
+
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+
+// Load state from URL hash if present
+if (location.hash) {
+  try {
+    const hashStr = location.hash.slice(1);
+    if (hashStr.startsWith('mr=')) {
+      // New multi-range format (base64 JSON)
+      const data = JSON.parse(atob(hashStr.slice(3)));
+      importState(data);
+    } else {
+      // Old single-range format
+      const p = new URLSearchParams(hashStr);
+      const r = S();
+      if (p.has('d')) { r.deposit = +p.get('d'); $('p-deposit').value = r.deposit; }
+      if (p.has('l')) { r.pLower = +p.get('l'); $('p-lower').value = r.pLower; }
+      if (p.has('u')) { r.pUpper = +p.get('u'); $('p-upper').value = r.pUpper; }
+      if (p.has('e')) { r.entry = +p.get('e'); $('p-entry').value = r.entry; }
+      if (p.has('x')) { r.leverage = +p.get('x'); }
+      if (p.has('t')) { r.debtType = p.get('t'); $('p-debt').value = r.debtType; }
+      if (p.has('m')) { r.marginPct = +p.get('m'); $('p-margin').value = r.marginPct; }
+    }
+  } catch(e) {}
+}
+
+window.addEventListener('resize', () => { compute(); });
+updateLeverVisual();
+renderPresets();
+renderRangeMenu();
+compute();
+
+// ── Frog animation system ──
+const frogL = $('frogLeft'), frogR = $('frogRight');
+const NS = 'http://www.w3.org/2000/svg';
+
+function mkFrog(sit, mirror, id) {
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('width', 20);
+  svg.setAttribute('height', sit ? 20 : 22);
+  svg.setAttribute('viewBox', sit ? '0 0 1280 1185' : '0 0 1046 1280');
+  svg.setAttribute('fill', 'var(--text-muted)');
+  if (mirror) svg.style.transform = 'scaleX(-1)';
+  svg.id = id;
+  svg.classList.add('frog-svg');
+  const use = document.createElementNS(NS, 'use');
+  use.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '#' + (sit ? 'frogSitG' : 'frogJumpG'));
+  svg.appendChild(use);
+  return svg;
+}
+
+// Left container: sitL (facing left, default), jumpL (jump mirrored = facing right, for launch)
+frogL.appendChild(mkFrog(true, false, 'sitL'));    // sit facing left ✓
+frogL.appendChild(mkFrog(false, true, 'jumpL'));   // jump mirrored = facing right (for rightward launch)
+frogL.querySelector('#sitL').classList.add('active');
+
+// Right container: sitR (sit mirrored = facing right), jumpR (jump original = facing left, for leftward launch)  
+frogR.appendChild(mkFrog(true, true, 'sitR'));     // sit mirrored = facing right ✓
+frogR.appendChild(mkFrog(false, false, 'jumpR'));  // jump original = facing left (for leftward return)
+frogR.querySelector('#sitR').classList.add('active');
+
+let frogOnLeft = true, frogBusy = false;
+
+function showOnly(container, id) {
+  container.querySelectorAll('.frog-svg').forEach(s => s.classList.remove('active'));
+  const el = container.querySelector('#' + id);
+  if (el) el.classList.add('active');
+}
+
+function onAnim(el, cls, cb) {
+  el.classList.add(cls);
+  el.addEventListener('animationend', function h() {
+    el.removeEventListener('animationend', h);
+    el.classList.remove(cls);
+    cb();
+  });
+}
+
+function frogIdleBounce() {
+  if (frogBusy) return;
+  frogBusy = true;
+  const w = frogOnLeft ? frogL : frogR;
+  const jid = frogOnLeft ? 'jumpL' : 'jumpR';
+  const sid = frogOnLeft ? 'sitL' : 'sitR';
+  showOnly(w, jid);
+  onAnim(w, 'idle-jump', () => { showOnly(w, sid); frogBusy = false; });
+}
+
+function frogClickJump() {
+  if (frogBusy) return;
+  frogBusy = true;
+
+  if (frogOnLeft) {
+    // Launch rightward from left
+    showOnly(frogL, 'jumpL'); // jumpL faces right
+    onAnim(frogL, 'launch', () => {
+      frogL.classList.add('hidden');
+      showOnly(frogL, 'sitL');
+      // Land on right
+      frogR.classList.remove('hidden');
+      showOnly(frogR, 'jumpR'); // jumpR faces left (diving in from right)
+      onAnim(frogR, 'land', () => {
+        showOnly(frogR, 'sitR');
+        frogOnLeft = false;
+        frogBusy = false;
+      });
+    });
+  } else {
+    // Launch leftward from right
+    showOnly(frogR, 'jumpR'); // jumpR faces left
+    onAnim(frogR, 'launch-r', () => {
+      frogR.classList.add('hidden');
+      showOnly(frogR, 'sitR');
+      // Land on left
+      frogL.classList.remove('hidden');
+      showOnly(frogL, 'jumpL'); // jumpL faces right (diving in from left)
+      onAnim(frogL, 'land-l', () => {
+        showOnly(frogL, 'sitL');
+        frogOnLeft = true;
+        frogBusy = false;
+      });
+    });
+  }
+}
+
+frogL.addEventListener('click', frogClickJump);
+frogR.addEventListener('click', frogClickJump);
+setInterval(frogIdleBounce, 60000);
+setTimeout(frogIdleBounce, 3000);
+</script>
+<div class="toast" id="toast"><span class="toast-check">✓</span> <span id="toast-msg">Copied to clipboard</span></div>
+
+<!-- Frog SVG path defs (hidden) -->
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <g id="frogSitG" transform="translate(0,1185) scale(0.1,-0.1)"><path d="M5849 10456c-4-4-262-34-271-34-9-1-155-110-170-121-14-12-156-198-190-205-101-19-653-66-713-80-55-13-273-62-337-91-57-26-355-128-342-241 6-65-109-305-124-394-52-318 543-1155 620-1215 42-31 137-188 148-203 23-31 37-215-36-273-86-68-297-316-362-345-42-19-363-174-457-130-39 18-318 248-306 264 12 17 88 262 107 306 19 44 54 146 78 198 42 91 235 336 201 385-24 34-203 44-248-6-29-32-48-134-71-171-19-30-98-148-211-225-85-59-280-84-293-72-19 17-215 445-290 538-77 95-135 250-123 302 13 53-86 152-169 150-148-3-198-313-133-313 40-1 230-312 134-344-41-13-211 14-231 26-19 11-310 115-340 128-113 47-203 66-218 74-15 7-249 98-309 144-158 119-432-53-433-142 0-44 128-154 205-131 78 25 343-25 349-25 7 0 186-101 254-135 67-35 215-135 220-135 14 0 9-100-20-100-15 0-197-34-263-39-66-6-257-42-290-46-33-4-249-39-311-20-85 26-292-52-315-95-8-16 1-241 71-277 60-31 244 68 291 85 83 31 652 57 689 67 69 19 141-20 164-25 22-6 172-62 186-66 14-4 169-84 177-84 8 0 84-50 95-50 19 0 202-118 218-143 16-25 239-278 247-297 33-75 384-372 409-392 25-21 108-55 148-75 69-37 305-28 365 18 12 10 212 84 394 175 37 19 114 45 139 58 24 13 167 75 258 119l165 81 116 0 116 1 56-38c106-73 315-517 322-722 11-330 75-492 84-530 4-17 65-132 72-156 14-49 213-335 234-370 20-35 128-175 137-189 50-76 399-337 418-355 52-47 267-200 305-230 39-30 234-172 232-178-10-29-777 130-832 139-55 8-291 74-313 74-22 0-139 30-167 35-27 4-345 77-625 106-52 5-494 43-628 30-137-13-501-278-537-340-34-57-122-31-171-31-64 0-248-145-242-204 7-57 156-150 172-161 35-24 25-259-48-276-49-11-579 215-600 232-12 10-196 109-206 115-38 21-133 173-150 188-67 56-323-220-268-295 30-41 276-95 290-107 33-26 248-66 248-91 0-18 219-229 247-285 51-102-132-301-244-232-91 56-259 22-292-59-39-93 61-250 309-251 199-1 534-62 696-69 206-9 523-143 549-149 17-4 155-98 174-106 18-7 133-76 189-99 57-22 154-71 163-71 9 0 122-80 128-80 5 0 96-65 121-75 44-19 304-167 340-185 36-18 185-107 210-119 25-13 124-84 270-152 52-24 245-122 259-126 14-3 111-40 148-47 128-26 472-173 723-211 52-8 611-81 793-27 82 23 237 171 270 249 43 104-56 408-152 513-54 58-343 379-502 520-236 211-283 319-184 293 56-15 353-45 405-51 52-6 431-40 474-48 54-10 265 26 299 26 13 0 107 30 138 30 49 0 186 76 227 85 46 9 147 81 172 91 31 12 244 220 253 234 18 30 78 231 92 250 13 18 73 140 89 138 15-2 47-122 53-130 6-7 28-157 37-223 8-66 67-347 166-456 39-43 244-112 345-116l120-4 62 40c82 54 245 385 311 511 133 255 229 541 236 553 8 12 84 256 96 297 21 71 76 347 81 410 13 182 121 473 173 635 23 74 119 451 131 485 7 19 53 210 61 228 8 18 90 200 249 282 53 27 227 150 305 175 30 10 203 82 242 91 40 9 255 68 278 107 33 53-132 267-166 267-40 0-292-182-372-170-96 13-239 167-165 313 31 62 138 238 162 276 28 44 187 196 197 219 8 20 54 87 48 135-6 52-141 171-224 165-47-3-167-107-176-211-5-56-105-263-121-284-17-21-108-136-118-103-10 32-195 72-226 76-54 6-130-65-139-151-10-102-235-476-280-566-45-90-144-262-178-404-35-144-21-972-32-1030-6-33-35-125-55-155-29-44-39-162-45-165-11-7-11 985 7 1011 15 23 25 325 47 334 31 12 27 242 40 268 32 62-75 236-152 233-73-2-170 144-165 232 5 70-61 194-92 298-9 32-136 149-155 149-8 0-414 57-482 12-14-9-228-194-325-407-47-105-134-343-148-374-13-31-75-185-102-177-11 4-134 221-157 251-13 17-90 213-105 240-15 28-101 253-132 296-10 14-67 151-74 159-17 21-56 161-70 184-14 24-93 269-106 304-28 79 147-16 242-27 93-10 280 32 300 38 22 7 218 193 229 248 6 32 32 376 15 467-35 190-3 347 0 366 9 47 133 355 157 365 60 26 321 209 362 229 41 20 99 56 114 56 42 0 233 254 108 317-44 22-267-6-289-53-9-19-60-114-134-148-43-20-192-93-215-100-24-7-198-99-223-106-42-12-188 94-215 228-11 56-95 334-37 393 38 39 18 183-63 224-82 41-331-37-332-91-1-55 117-167 128-214 19-82-33-730-65-730-9 0-242 173-291 201-25 14-179 100-235 96-236-18-120-263-41-235 63 22 225-91 251-143 10-19 56-97 69-135 13-38 105-297 113-332 15-72-101-210-164-186-44 17-192 345-343 494-56 55-242 321-259 341-17 20-356 430-478 515-53 38-88 165-95 177-6 12-84 412-259 539-98 71-368 86-370 84z"/></g>
+    <g id="frogJumpG" transform="translate(0,1280) scale(0.1,-0.1)"><path d="M7525 12781c-38-10-295-135-310-167-22-46-184-193-188-212-8-39-335-160-364-168-37-11-294-211-323-261-19-33-60-89-90-123l-56-63-134 31c-112 25-590 54-630 82-26 18-211 3-336-68-77-43-98-147-91-174 8-32-73-235-73-308 0-63 83-210 106-240 27-35 130-285 135-297 7-20-161-146-216-174-138-71-527-483-594-655-82-208-109-355-117-632l-6-227 36-156c31-130 36-171 34-245l-3-89-59 105c-101 179-856 940-993 974-34 9-616 303-672 309-52 6-207-98-269-133-65-36-166-160-187-285-39-234-323-1246-360-1567-33-275-155-735-175-857-18-115-60-227-60-239 0-11-249-339-480-592-162-177-932-1288-999-1496-56-177 45-208 124-97 92 128 73-49 23-297-46-230-93-718-80-747 35-74 243 390 287 535 49 160 131 202 136 25 5-173 56-270 107-225 41 35 128 471 175 669 14 56 33 116 44 134l20 31 21-22c16-18 51-304 83-308 16-2 78 69 113 363 20 171 62 395 79 395 12 0 57-187 107-200 77-21 122 374 135 470 27 200 347 785 490 921 85 80 252 218 264 275l11 61-45 106c-34 80 47 265 143 392 151 200 332 557 332 574 0 16 88 273 101 679 9 252 56 319 84 251 29-72 154-277 168-305 14-28 359-483 572-642 77-58 314-240 394-294 145-98 272-102 276-108 3-5 77-43 96-84 11-22 263-168 311-229 40-50 112-245 119-547 9-460 454-1261 464-1308 4-21-45-135-133-203-57-45-381-264-504-357-293-223-828-883-840-906-11-23-65-100-120-173l-100-132-82-27c-109-36-133-56-165-137l-27-68 17-137c12-92 18-211 19-362l1-225-50-190c-47-181-331-798-361-904-37-129-2-201 36-201 23 0 101-12 117-122 14-104-22-483-14-491 7-7 98 63 107 63 9 0 134-148 134-243-1-128 80-484 80-457 0 14 61 186 91 197 19 7 144 9 164-13 24-25 54-142 64-155 17-21 63 40 81 81l33 75-6 254-6 254 34 66c34 69 150 99 170 108l35 17 0 185c0 140 40 440 40 469 0 29 20 267 11 489-10 277-64 727-63 811l1 152 63 103c78 126 709 713 818 792 137 99 761 692 851 817 116 160 194 573 200 743 5 171 31 1069 14 1191-9 60-38 189-66 288l-51 178-104 142-105 141 28 6c15 4 282 12 465 63 341 95 1151 620 1381 865 128 136 324 370 327 370 3 0 96-281 203-440l111-165 56-20c53-19 645 73 871 171 96 42 295 145 304 145 10 0 249 101 294 58 19-17 29-343 84-377 25-15 158-18 180 8 32 39 5 183-1 216-17 102 108 169 147 101 46-80 234-163 265-145 18 10 108 187 72 257-21 41-276 213-276 221 0 8 60 81 113 91 78 14 201 82 227 125l19 31-28 43c-37 55-204 67-299 16-83-44-292-9-292 14 0 7 111 277 86 313-23 32-213-33-236-132-13-52-83-208-192-266-111-60-446-106-498-109-52-3-434-13-456 20-16 24-86 667-158 855-30 80-57 268-29 285 36 21 291 580 312 661 25 97 156 424 185 525 39 142 73 551 88 630 14 79-112 371-268 491-116 88-551 238-658 238l-85 0-107 92c-134 114-163 123-299 89z"/></g>
+  </defs>
+</svg>
+</body>
+</html>
