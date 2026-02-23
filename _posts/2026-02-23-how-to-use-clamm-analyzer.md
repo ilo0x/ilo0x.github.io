@@ -119,7 +119,7 @@ Switch between ranges using the dropdown in the top-right corner of the chart. T
 
 The save icon at the top of the lever rail opens the export dropdown.
 
-![Export menu](/assets/img/posts/clamm-analyzer/export_menu.png)
+![Export menu](/assets/img/posts/2026-02-23-how-to-use-clamm-analyzer/export_menu.png)
 _JSON, URL, and preset options._
 
 **Export JSON** downloads a full snapshot of all ranges and settings as a `.json` file. Useful for archiving a setup before you deploy it on-chain.
