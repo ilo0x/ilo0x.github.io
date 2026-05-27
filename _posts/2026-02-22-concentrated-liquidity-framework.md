@@ -113,7 +113,7 @@ After running Monte Carlo simulations across ~10,000 price paths for ETH/USDC:
 
 I built two tools to make this analysis accessible:
 
-**[clAMM Analyzer](/dextools/clamm_analyzer_1.7.html)** — Interactive position analyzer with multi-range support, PnL tracking, and fee projection. Paste a position ID or configure manually.
+**[clAMM Analyzer](/dextools/clamm_analyzer_2.0.html)** — Interactive position analyzer with multi-range support, PnL tracking, and fee projection. Paste a position ID or configure manually.
 
 **[Rebalance Backtester](/dextools/clamm_backtester_1.1.html)** — Run historical backtests on rebalancing strategies with configurable triggers, Monte Carlo optimization, and exportable results.
 

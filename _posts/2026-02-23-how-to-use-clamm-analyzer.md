@@ -9,7 +9,7 @@ math: false
 
 Concentrated liquidity AMM positions are more capital-efficient than traditional liquidity pools, but that efficiency cuts both ways. A wide range misses most of the fees. A narrow range earns well — until price drifts out and you're left holding an unbalanced bag. Layer in leverage and a liquidation price enters the equation. Before any capital goes on-chain, it helps to be able to see exactly what you're stepping into.
 
-The [clAMM Analyzer](/dextools/clamm_analyzer_1.8.html) is a browser-based tool for modeling concentrated liquidity positions. No wallet, no connection, no data sent anywhere — just a canvas that reacts to your inputs in real time.
+The [clAMM Analyzer](/dextools/clamm_analyzer_2.0.html) is a browser-based tool for modeling concentrated liquidity positions. No wallet, no connection, no data sent anywhere — just a canvas that reacts to your inputs in real time.
 
 ---
 
@@ -134,6 +134,6 @@ _JSON, URL, and preset options._
 
 The clAMM Analyzer is one of several browser-based DEX tools. The goal with all of them is the same: bring the math into view before the transaction happens. If you're deploying concentrated liquidity — especially with leverage — the ten minutes spent in the analyzer will tell you more than most post-deployment dashboards.
 
-Tool link: [clAMM Analyzer →](/dextools/clamm_analyzer_1.8.html)
+Tool link: [clAMM Analyzer →](/dextools/clamm_analyzer_2.0.html)
 
 Questions or feedback: [@ilo_0x](https://x.com/ilo_0x) on X.
